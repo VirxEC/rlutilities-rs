@@ -1,5 +1,8 @@
+mod pytypes;
+
 use autocxx::prelude::*;
 use pyo3::{prelude::*, wrap_pyfunction, wrap_pymodule};
+use pytypes::*;
 
 include_cpp! {
     #include "rlutilities.h"
@@ -38,10 +41,22 @@ macro_rules! pynamedmodule {
 }
 
 #[pyclass]
-struct Game {}
+#[derive(Debug, Default)]
+struct Game {
+    field_info: FieldInfoPacket,
+}
 
 #[pymethods]
 impl Game {
+    #[new]
+    fn new() -> Self {
+        Game::default()
+    }
+
+    fn read_field_info(&mut self, field_info: FieldInfoPacket) {
+        self.field_info = field_info;
+    }
+
     #[staticmethod]
     fn set_mode(mode: String) {
         sim_game::Game::set_mode(mode);
