@@ -1,0 +1,3 @@
+asset_dir: str
+
+def initialize(asset_dir: str): ...

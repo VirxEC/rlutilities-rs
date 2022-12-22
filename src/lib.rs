@@ -16,13 +16,6 @@ include_cpp! {
 }
 
 include_cpp! {
-    #include "misc/config.h"
-    name!(misc_config)
-    safety!(unsafe)
-    generate!("ASSET_DIR")
-}
-
-include_cpp! {
     #include "simulation/ball.h"
     name!(sim_ball)
     safety!(unsafe_ffi)
@@ -34,7 +27,6 @@ macro_rules! pynamedmodule {
     (doc: $doc:literal, name: $name:tt, funcs: [$($func_name:path),*], classes: [$($class_name:ident),*], submodules: [$($submodule_name:ident),*]) => {
         #[doc = $doc]
         #[pymodule]
-        #[allow(non_snake_case)]
         #[allow(redundant_semicolons)]
         fn $name(_py: Python, m: &PyModule) -> PyResult<()> {
             $(m.add_function(wrap_pyfunction!($func_name, m)?)?);*;
@@ -70,28 +62,12 @@ pynamedmodule! {
 pynamedmodule! {
     doc: "RLUtilities bindings for Python 3.7+",
     name: rlutilities,
-    funcs: [],
+    funcs: [initialize],
     classes: [],
     submodules: [simulation]
 }
 
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    fn main() {
-        use std::str::from_utf8;
-
-        // Converts to utf8 and removes null terminator
-        let asset_dir = from_utf8(misc_config::ASSET_DIR)
-            .unwrap()
-            .trim_end_matches(char::from(0));
-
-        base::rlu::initialize(asset_dir);
-
-        sim_game::Game::set_mode("soccar");
-
-        println!("Hello, world!");
-    }
+#[pyfunction]
+fn initialize(asset_dir: String) {
+    base::rlu::initialize(asset_dir);
 }

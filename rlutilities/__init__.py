@@ -1,4 +1,5 @@
 import sys
+from pathlib import Path
 
 from .rlutilities import *
 
@@ -7,3 +8,6 @@ if hasattr(rlutilities, "__all__"):
     __all__ = rlutilities.__all__
 
 sys.modules["rlutilities.simulation"] = simulation
+
+asset_dir = Path(__file__).parent / "assets"
+initialize(asset_dir.as_posix() + "/")
