@@ -3,7 +3,7 @@ use glob::glob;
 use miette::{IntoDiagnostic, Result};
 
 fn main() -> Result<()> {
-    let mut b = Builder::new("src/lib.rs", ["RLUtilities-cpp/inc/"])
+    let mut b = Builder::new("src/ctypes.rs", ["RLUtilities-cpp/inc/"])
         .extra_clang_args(&["-std=c++17"])
         .build()?;
 
@@ -17,7 +17,7 @@ fn main() -> Result<()> {
         .warnings(false)
         .compile("rlutilities");
 
-    // println!("cargo:rerun-if-changed=src/lib.rs");
+    println!("cargo:rerun-if-changed=src/ctypes.rs");
 
     Ok(())
 }

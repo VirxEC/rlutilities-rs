@@ -11,7 +11,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 autocxx = "0.23.1"
-cxx = "1.0.83"
+cxx = { version = "1.0.83", features = ["c++17"] }
 pyo3 = { version = "0.17.3", features = ["abi3-py37", "extension-module"] }
 
 [build-dependencies]

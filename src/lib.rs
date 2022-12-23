@@ -1,30 +1,11 @@
+mod ctypes;
 mod pytypes;
 
 use autocxx::prelude::*;
+use ctypes::{linear_algebra as lin, rlu, simulation as sim};
 use pyo3::{prelude::*, wrap_pyfunction, wrap_pymodule};
 use pytypes::*;
-
-include_cpp! {
-    #include "rlutilities.h"
-    name!(base)
-    safety!(unsafe_ffi)
-    generate!("rlu::initialize")
-}
-
-include_cpp! {
-    #include "simulation/game.h"
-    name!(sim_game)
-    safety!(unsafe_ffi)
-    generate!("Game")
-}
-
-include_cpp! {
-    #include "simulation/ball.h"
-    name!(sim_ball)
-    safety!(unsafe_ffi)
-    generate!("BallShape")
-    generate!("Ball")
-}
+use std::pin::Pin;
 
 macro_rules! pynamedmodule {
     (doc: $doc:literal, name: $name:tt, funcs: [$($func_name:path),*], classes: [$($class_name:ident),*], submodules: [$($submodule_name:ident),*]) => {
@@ -40,26 +21,35 @@ macro_rules! pynamedmodule {
     };
 }
 
-#[pyclass]
-#[derive(Debug, Default)]
+#[pyclass(unsendable)]
 struct Game {
-    field_info: FieldInfoPacket,
+    game: Pin<Box<sim::game::Game>>,
 }
 
 #[pymethods]
 impl Game {
     #[new]
     fn new() -> Self {
-        Game::default()
+        Self {
+            game: sim::game::Game::new().within_box(),
+        }
     }
 
     fn read_field_info(&mut self, field_info: FieldInfoPacket) {
-        self.field_info = field_info;
+        self.game.as_mut().resize_pads(field_info.num_boosts());
+        for (i, pad) in field_info.pads().iter().enumerate() {
+            self.game.as_mut().reset_pad(c_int(i as i32), pad.location.x, pad.location.y, pad.location.z, pad.is_full_boost);
+        }
+
+        self.game.as_mut().resize_goals(field_info.num_goals());
+        for (i, goal) in field_info.goals().iter().enumerate() {
+            self.game.as_mut().reset_goal(c_int(i as i32), goal.location.x, goal.location.y, goal.location.z, goal.direction.x, goal.direction.y, goal.z, goal.width, goal.height, c_int(goal.team_num as i32));
+        }
     }
 
     #[staticmethod]
     fn set_mode(mode: String) {
-        sim_game::Game::set_mode(mode);
+        sim::game::Game::set_mode(mode);
     }
 }
 
@@ -84,5 +74,5 @@ pynamedmodule! {
 
 #[pyfunction]
 fn initialize(asset_dir: String) {
-    base::rlu::initialize(asset_dir);
+    rlu::initialize(asset_dir);
 }
