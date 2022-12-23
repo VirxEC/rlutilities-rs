@@ -43,7 +43,7 @@ impl Game {
 
         self.game.as_mut().resize_goals(field_info.num_goals());
         for (i, goal) in field_info.goals().iter().enumerate() {
-            self.game.as_mut().reset_goal(c_int(i as i32), goal.location.x, goal.location.y, goal.location.z, goal.direction.x, goal.direction.y, goal.z, goal.width, goal.height, c_int(goal.team_num as i32));
+            self.game.as_mut().reset_goal(c_int(i as i32), goal.location.x, goal.location.y, goal.location.z, goal.direction.x, goal.direction.y, goal.direction.z, goal.width, goal.height, c_int(goal.team_num as i32));
         }
     }
 
