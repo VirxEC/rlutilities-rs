@@ -52,3 +52,88 @@ impl FieldInfoPacket {
         &self.goals[..self.num_goals]
     }
 }
+
+#[derive(Clone, Copy, Debug, Default, FromPyObject)]
+pub struct Hitbox {
+    pub length: f32,
+    pub width: f32,
+    pub height: f32,
+}
+
+#[derive(Clone, Copy, Debug, Default, FromPyObject)]
+pub struct Rotator {
+    pub pitch: f32,
+    pub yaw: f32,
+    pub roll: f32,
+}
+
+#[derive(Clone, Copy, Debug, Default, FromPyObject)]
+pub struct Sphere {
+    pub diameter: f32,
+}
+
+#[derive(Clone, Copy, Debug, Default, FromPyObject)]
+pub struct Cuboid {
+    pub length: f32,
+    pub width: f32,
+    pub height: f32,
+}
+
+#[derive(Clone, Copy, Debug, Default, FromPyObject)]
+pub struct Cylinder {
+    pub diameter: f32,
+    pub height: f32,
+}
+
+#[derive(Clone, Copy, Debug, Default, FromPyObject)]
+pub struct CollisionShape {
+    #[pyo3(attribute("type"))]
+    shape_type: usize,
+    #[pyo3(attribute("box"))]
+    box_: Cuboid,
+    sphere: Sphere,
+    cylinder: Cylinder,
+}
+
+#[derive(Clone, Copy, Debug, Default, FromPyObject)]
+pub struct Physics {
+    pub location: Vector3,
+    pub velocity: Vector3,
+    pub angular_velocity: Vector3,
+    pub rotation: Rotator,
+}
+
+#[derive(Clone, Copy, Debug, Default, FromPyObject)]
+pub struct GameBall {
+    pub physics: Physics,
+    pub collision_shape: CollisionShape,
+}
+
+#[derive(Clone, Copy, Debug, Default, FromPyObject)]
+pub struct GameInfo {
+    pub seconds_elapsed: f32,
+    pub game_time_remaining: f32,
+    pub world_gravity_z: f32,
+    pub is_match_ended: bool,
+    pub is_round_active: bool,
+    pub is_kickoff_pause: bool,
+}
+
+#[derive(Clone, Copy, Debug, Default, FromPyObject)]
+pub struct Car {
+    pub physics: Physics,
+    pub hitbox: Hitbox,
+    pub hitbox_offset: Vector3,
+    pub boost: u8,
+    pub jumped: bool,
+    pub double_jumped: bool,
+    pub is_demolished: bool,
+    pub has_wheel_contact: bool,
+}
+
+#[derive(Clone, Copy, Debug, Default, FromPyObject)]
+pub struct GameTickPacket {
+    pub game_info: GameInfo,
+    pub game_ball: GameBall,
+    pub num_cars: usize,
+}

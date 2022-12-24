@@ -10,9 +10,9 @@ pub mod rlu {
 }
 
 pub mod linear_algebra {
-    pub mod math {
+    pub mod vec {
         autocxx::include_cpp! {
-            #include "linear_algebra/math.h"
+            #include "linear_algebra/vec.h"
             name!(lin_math)
             safety!(unsafe_ffi)
             generate!("vec3")
