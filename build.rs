@@ -11,9 +11,10 @@ fn main() -> Result<()> {
         .files(
             glob("RLUtilities-cpp/src/**/*.cc")
                 .into_diagnostic()?
-                .flatten(),
+                .flatten()
+                // don't include the messages folder
+                .filter(|p| !p.components().any(|c| c.as_os_str() == "messages")),
         )
-        .include("RLUtilities-cpp/extern/rapidjson/include")
         .warnings(false)
         .compile("rlutilities");
 

@@ -10,7 +10,6 @@ from rlbot.utils.structures.game_data_struct import (BoostPad, BoxShape,
 from rlutilities.simulation import Ball, Game
 from rlutilities.linear_algebra import vec3
 
-
 def get_field_info() -> FieldInfoPacket:
     packet = FieldInfoPacket()
 
@@ -77,7 +76,16 @@ def get_random_packet():
 Game.set_mode("soccar")
 game = Game()
 game.read_field_info(get_field_info())
-game.read_packet(get_random_packet())
+game_tick_packet = get_random_packet()
+game.read_packet(game_tick_packet)
 
 random_vec3 = vec3(randint(-4000, 4000), randint(-5020, 5020), randint(100, 1944))
+vec3_copy = vec3(random_vec3)
+vec3_copy.z = 0
 print(random_vec3)
+print(vec3_copy)
+assert random_vec3.z != vec3_copy.z
+
+random_ball = Ball()
+packet_ball = Ball(game_tick_packet.game_ball)
+packet_ball.step(1/120)

@@ -3,6 +3,7 @@ name = "rlutilities"
 version = "0.1.0"
 edition = "2021"
 publish = false
+exclude = [".gitignore", ".gitmodules", "extras/", ".github/", "tests/", "python/", "extern/", "messages/", "RLUtilities-cpp/assets", ".editorconfig", "CMakeLists.txt", ".vimrc"]
 
 [lib]
 crate-type = ["cdylib"]
@@ -22,3 +23,4 @@ miette = { version = "5", features = ["fancy"] }
 [profile.release]
 lto = true
 strip = true
+panic = "abort"

@@ -2,7 +2,7 @@ pub mod rlu {
     autocxx::include_cpp! {
         #include "rlutilities.h"
         name!(base)
-        safety!(unsafe_ffi)
+        safety!(unsafe)
         generate!("rlu::initialize")
     }
 
@@ -14,7 +14,7 @@ pub mod linear_algebra {
         autocxx::include_cpp! {
             #include "linear_algebra/vec.h"
             name!(lin_math)
-            safety!(unsafe_ffi)
+            safety!(unsafe)
             generate!("vec3")
         }
 
@@ -27,7 +27,7 @@ pub mod simulation {
         autocxx::include_cpp! {
             #include "simulation/game.h"
             name!(sim_game)
-            safety!(unsafe_ffi)
+            safety!(unsafe)
             generate!("Game")
         }
 
@@ -38,12 +38,26 @@ pub mod simulation {
         autocxx::include_cpp! {
             #include "simulation/ball.h"
             name!(sim_ball)
-            safety!(unsafe_ffi)
-            generate!("BallShape")
+            safety!(unsafe)
+            // generate_pod!("BallShape")
+            block!("Ball::get_position")
             generate!("Ball")
         }
 
+        #[cxx::bridge]
+        mod sim_ball_2 {
+            unsafe extern "C++" {
+                include!("simulation/ball.h");
+
+                type Ball;
+
+                #[cxx_name = "get_position"]
+                fn get_position_2(&self) -> [f32; 3];
+            }
+        }
+
         pub use sim_ball::*;
+        // pub use sim_ball_2::*;
     }
 
     pub mod boost_pad {

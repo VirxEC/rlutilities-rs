@@ -67,33 +67,26 @@ pub struct Rotator {
     pub roll: f32,
 }
 
-#[derive(Clone, Copy, Debug, Default, FromPyObject)]
-pub struct Sphere {
-    pub diameter: f32,
-}
+// #[derive(Clone, Copy, Debug, Default, FromPyObject)]
+// pub struct Sphere {
+//     pub diameter: f32,
+// }
 
-#[derive(Clone, Copy, Debug, Default, FromPyObject)]
-pub struct Cuboid {
-    pub length: f32,
-    pub width: f32,
-    pub height: f32,
-}
+// #[derive(Clone, Copy, Debug, Default, FromPyObject)]
+// pub struct Cylinder {
+//     pub diameter: f32,
+//     pub height: f32,
+// }
 
-#[derive(Clone, Copy, Debug, Default, FromPyObject)]
-pub struct Cylinder {
-    pub diameter: f32,
-    pub height: f32,
-}
-
-#[derive(Clone, Copy, Debug, Default, FromPyObject)]
-pub struct CollisionShape {
-    #[pyo3(attribute("type"))]
-    shape_type: usize,
-    #[pyo3(attribute("box"))]
-    box_: Cuboid,
-    sphere: Sphere,
-    cylinder: Cylinder,
-}
+// #[derive(Clone, Copy, Debug, Default, FromPyObject)]
+// pub struct CollisionShape {
+//     #[pyo3(attribute("type"))]
+//     shape_type: usize,
+//     #[pyo3(attribute("box"))]
+//     box_: Hitbox,
+//     sphere: Sphere,
+//     cylinder: Cylinder,
+// }
 
 #[derive(Clone, Copy, Debug, Default, FromPyObject)]
 pub struct Physics {
@@ -106,7 +99,7 @@ pub struct Physics {
 #[derive(Clone, Copy, Debug, Default, FromPyObject)]
 pub struct GameBall {
     pub physics: Physics,
-    pub collision_shape: CollisionShape,
+    // pub collision_shape: CollisionShape,
 }
 
 #[derive(Clone, Copy, Debug, Default, FromPyObject)]

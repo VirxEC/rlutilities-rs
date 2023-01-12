@@ -22,17 +22,13 @@ macro_rules! pynamedmodule {
 }
 
 #[pyclass(unsendable)]
-struct Game {
-    _inner: Pin<Box<sim::game::Game>>,
-}
+struct Game(Pin<Box<sim::game::Game>>);
 
 #[pymethods]
 impl Game {
     #[new]
     fn new() -> Self {
-        Self {
-            _inner: sim::game::Game::new().within_box(),
-        }
+        Self(sim::game::Game::new().within_box())
     }
 
     #[staticmethod]
@@ -41,9 +37,9 @@ impl Game {
     }
 
     fn read_field_info(&mut self, field_info: FieldInfoPacket) {
-        self._inner.as_mut().resize_pads(field_info.num_boosts());
+        self.0.as_mut().resize_pads(field_info.num_boosts());
         for (i, pad) in field_info.pads().iter().enumerate() {
-            self._inner.as_mut().reset_pad(
+            self.0.as_mut().reset_pad(
                 c_int(i as i32),
                 pad.location.x,
                 pad.location.y,
@@ -52,9 +48,9 @@ impl Game {
             );
         }
 
-        self._inner.as_mut().resize_goals(field_info.num_goals());
+        self.0.as_mut().resize_goals(field_info.num_goals());
         for (i, goal) in field_info.goals().iter().enumerate() {
-            self._inner.as_mut().reset_goal(
+            self.0.as_mut().reset_goal(
                 c_int(i as i32),
                 goal.location.x,
                 goal.location.y,
@@ -64,13 +60,13 @@ impl Game {
                 goal.direction.z,
                 goal.width,
                 goal.height,
-                c_int(goal.team_num as i32),
+                c_int(i32::from(goal.team_num)),
             );
         }
     }
 
     fn read_packet(&mut self, packet: GameTickPacket) {
-        self._inner.as_mut().set_game_info(
+        self.0.as_mut().set_game_info(
             packet.game_info.seconds_elapsed,
             packet.game_info.game_time_remaining,
             packet.game_info.world_gravity_z,
@@ -81,8 +77,46 @@ impl Game {
     }
 }
 
-#[pyclass]
-struct Ball {}
+impl From<GameBall> for Ball {
+    fn from(pball: GameBall) -> Self {
+        let mut sim_ball = sim::ball::Ball::new().within_box();
+
+        sim_ball.as_mut().update(
+            pball.physics.location.x,
+            pball.physics.location.y,
+            pball.physics.location.z,
+            pball.physics.velocity.x,
+            pball.physics.velocity.y,
+            pball.physics.velocity.z,
+            pball.physics.angular_velocity.x,
+            pball.physics.angular_velocity.y,
+            pball.physics.angular_velocity.z,
+        );
+
+        Self(sim_ball)
+    }
+}
+
+#[pyclass(unsendable)]
+struct Ball(Pin<Box<sim::ball::Ball>>);
+
+impl Default for Ball {
+    fn default() -> Self {
+        Self(sim::ball::Ball::new().within_box())
+    }
+}
+
+#[pymethods]
+impl Ball {
+    #[new]
+    fn new(packet_ball: Option<GameBall>) -> Self {
+        packet_ball.map(Into::into).unwrap_or_default()
+    }
+
+    fn step(&mut self, dt: f32) {
+        self.0.as_mut().step(dt);
+    }
+}
 
 #[pyclass]
 #[derive(Clone, Copy)]
@@ -97,13 +131,13 @@ impl Vec3 {
     #[new]
     #[args(args = "*", kwargs = "**")]
     fn new(args: &PyTuple, kwargs: Option<&PyAny>) -> Self {
-        if let Ok(args) = args.get_item(0).and_then(|x| x.extract::<Vec3>()) {
+        if let Ok(args) = args.get_item(0).and_then(PyAny::extract) {
             return args;
         }
 
         let mut vec = [None; Self::VEC3_ITEMS];
 
-        if let Ok(args) = args.get_item(0).and_then(|x| x.extract::<Vec<f32>>()) {
+        if let Ok(args) = args.get_item(0).and_then(PyAny::extract::<Vec<f32>>) {
             vec.iter_mut()
                 .zip(args.into_iter())
                 .for_each(|(a, b)| *a = Some(b));
@@ -121,7 +155,7 @@ impl Vec3 {
 
         if let Some(kwargs) = kwargs {
             for (a, b) in vec.iter_mut().zip(Self::NAMES.into_iter()) {
-                if let Ok(x) = kwargs.get_item(b).and_then(|x| x.extract()) {
+                if let Ok(x) = kwargs.get_item(b).and_then(PyAny::extract) {
                     *a = Some(x);
                 }
             }
