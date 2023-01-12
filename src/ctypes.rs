@@ -26,17 +26,18 @@ pub mod simulation {
     pub mod game {
         autocxx::include_cpp! {
             #include "simulation/game.h"
-            name!(sim_game_pre)
+            name!(sim_game)
             safety!(unsafe)
+            extern_cpp_opaque_type!("Ball", crate::ctypes::simulation::ball::Ball)
             generate!("Game")
         }
 
         #[cxx::bridge]
-        mod sim_game {
+        mod sim_game_extra {
             unsafe extern "C++" {
                 include!("simulation/game.h");
 
-                type Game = super::sim_game_pre::Game;
+                type Game = super::sim_game::Game;
 
                 #[cxx_name = "reset_pad"]
                 fn reset_pad_2(
@@ -59,34 +60,31 @@ pub mod simulation {
             }
         }
 
-        pub use sim_game::*;
+        pub use sim_game_extra::*;
     }
 
     pub mod ball {
         autocxx::include_cpp! {
             #include "simulation/ball.h"
-            name!(sim_ball_pre)
+            name!(sim_ball)
             safety!(unsafe)
             // generate_pod!("BallShape")
             generate!("Ball")
         }
 
         #[cxx::bridge]
-        mod sim_ball {
+        mod sim_ball_extra {
             unsafe extern "C++" {
                 include!("simulation/ball.h");
 
-                type Ball = super::sim_ball_pre::Ball;
+                type Ball = super::sim_ball::Ball;
 
                 #[cxx_name = "get_position"]
                 fn get_position_2(&self) -> [f32; 3];
-
-                #[cxx_name = "update"]
-                fn update_2(self: Pin<&mut Ball>, pos: [f32; 3], vel: [f32; 3], ang_vel: [f32; 3]);
             }
         }
 
-        pub use sim_ball::*;
+        pub use sim_ball_extra::*;
     }
 
     pub mod boost_pad {

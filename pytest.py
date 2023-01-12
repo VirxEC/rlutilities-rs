@@ -9,7 +9,7 @@ from rlbot.utils.structures.game_data_struct import (BoostPad, BoxShape,
                                                      Vector3)
 
 from rlutilities.linear_algebra import vec3
-from rlutilities.simulation import Ball, Game
+from rlutilities.simulation import Ball, Field, Game
 
 
 def get_field_info() -> FieldInfoPacket:

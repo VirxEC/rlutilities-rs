@@ -67,40 +67,30 @@ impl Game {
             packet.game_info.is_kickoff_pause,
         );
     }
-}
 
-impl From<GameBall> for Ball {
-    fn from(pball: GameBall) -> Self {
-        let mut sim_ball = sim::ball::Ball::new().within_box();
-
-        sim_ball.as_mut().update_2(
-            pball.physics.location.into(),
-            pball.physics.velocity.into(),
-            pball.physics.angular_velocity.into(),
-        );
-
-        Self(sim_ball)
+    fn get_ball(&mut self) -> Ball{
+        Ball(self.0.as_mut().get_ball())
     }
 }
 
 #[pyclass(unsendable)]
-struct Ball(Pin<Box<sim::ball::Ball>>);
+struct Ball(UniquePtr<sim::ball::Ball>);
 
 impl Default for Ball {
     fn default() -> Self {
-        Self(sim::ball::Ball::new().within_box())
+        Self(sim::ball::Ball::new().within_unique_ptr())
     }
 }
 
 #[pymethods]
 impl Ball {
-    #[new]
-    fn new(packet_ball: Option<GameBall>) -> Self {
-        packet_ball.map(Into::into).unwrap_or_default()
-    }
+    // #[new]
+    // fn new(ball: Option<Ball>) -> Self {
+    //     ball.unwrap_or_default()
+    // }
 
     fn step(&mut self, dt: f32) {
-        self.0.as_mut().step(dt);
+        self.0.pin_mut().step(dt);
     }
 
     #[getter(position)]
@@ -229,6 +219,9 @@ impl Vec3 {
     }
 }
 
+#[pyclass]
+struct Field();
+
 pynamedmodule! {
     doc: "",
     name: linear_algebra,
@@ -241,7 +234,7 @@ pynamedmodule! {
     doc: "",
     name: simulation,
     funcs: [],
-    classes: [Game, Ball],
+    classes: [Game, Ball, Field],
     submodules: []
 }
 
