@@ -1,4 +1,5 @@
 from typing import Optional, Tuple
+from rlutilities.linear_algebra import vec3
 
 try:
     from rlbot.utils.structures.game_data_struct import (BallInfo,
@@ -11,7 +12,11 @@ _Shape = Tuple[int, ...]
 __doc__: str
 
 class Ball:
+    position: vec3
+
     def __init__(packet_ball: Optional[BallInfo]) -> Ball: ...
+    def __str__(self): ...
+    def __repr__(self): ...
     def step(self, dt: float): ...
 
 class Game:

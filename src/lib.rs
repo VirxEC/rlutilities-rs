@@ -39,28 +39,20 @@ impl Game {
     fn read_field_info(&mut self, field_info: FieldInfoPacket) {
         self.0.as_mut().resize_pads(field_info.num_boosts());
         for (i, pad) in field_info.pads().iter().enumerate() {
-            self.0.as_mut().reset_pad(
-                c_int(i as i32),
-                pad.location.x,
-                pad.location.y,
-                pad.location.z,
-                pad.is_full_boost,
-            );
+            self.0
+                .as_mut()
+                .reset_pad_2(i as i32, pad.location.into(), pad.is_full_boost);
         }
 
         self.0.as_mut().resize_goals(field_info.num_goals());
         for (i, goal) in field_info.goals().iter().enumerate() {
-            self.0.as_mut().reset_goal(
-                c_int(i as i32),
-                goal.location.x,
-                goal.location.y,
-                goal.location.z,
-                goal.direction.x,
-                goal.direction.y,
-                goal.direction.z,
+            self.0.as_mut().reset_goal_2(
+                i as i32,
+                goal.location.into(),
+                goal.direction.into(),
                 goal.width,
                 goal.height,
-                c_int(i32::from(goal.team_num)),
+                i32::from(goal.team_num),
             );
         }
     }
@@ -81,16 +73,10 @@ impl From<GameBall> for Ball {
     fn from(pball: GameBall) -> Self {
         let mut sim_ball = sim::ball::Ball::new().within_box();
 
-        sim_ball.as_mut().update(
-            pball.physics.location.x,
-            pball.physics.location.y,
-            pball.physics.location.z,
-            pball.physics.velocity.x,
-            pball.physics.velocity.y,
-            pball.physics.velocity.z,
-            pball.physics.angular_velocity.x,
-            pball.physics.angular_velocity.y,
-            pball.physics.angular_velocity.z,
+        sim_ball.as_mut().update_2(
+            pball.physics.location.into(),
+            pball.physics.velocity.into(),
+            pball.physics.angular_velocity.into(),
         );
 
         Self(sim_ball)
@@ -116,12 +102,31 @@ impl Ball {
     fn step(&mut self, dt: f32) {
         self.0.as_mut().step(dt);
     }
+
+    #[getter(position)]
+    fn get_position(&self) -> Vec3 {
+        Vec3(self.0.get_position_2())
+    }
+
+    fn __str__(&self) -> String {
+        format!("Ball: position={}", self.get_position().__str__())
+    }
+
+    fn repr(&self) -> String {
+        format!("Ball(position={})", self.get_position().__repr__())
+    }
 }
 
 #[pyclass]
 #[derive(Clone, Copy)]
 #[pyo3(name = "vec3")]
 struct Vec3([f32; 3]);
+
+impl Into<[f32; 3]> for Vec3 {
+    fn into(self) -> [f32; 3] {
+        self.0
+    }
+}
 
 #[pymethods]
 impl Vec3 {

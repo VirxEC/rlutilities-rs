@@ -9,6 +9,12 @@ pub struct Vector3 {
     pub z: f32,
 }
 
+impl Into<[f32; 3]> for Vector3 {
+    fn into(self) -> [f32; 3] {
+        [self.x, self.y, self.z]
+    }
+}
+
 #[allow(dead_code)]
 #[derive(Clone, Copy, FromPyObject, Debug, Default)]
 pub struct BoostPad {

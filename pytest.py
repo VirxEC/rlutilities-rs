@@ -1,4 +1,5 @@
-from random import uniform, randint
+from random import randint, uniform
+from time import time_ns
 
 from rlbot.utils.structures.game_data_struct import (BoostPad, BoxShape,
                                                      FieldInfoPacket,
@@ -7,8 +8,9 @@ from rlbot.utils.structures.game_data_struct import (BoostPad, BoxShape,
                                                      Rotator, ScoreInfo,
                                                      Vector3)
 
-from rlutilities.simulation import Ball, Game
 from rlutilities.linear_algebra import vec3
+from rlutilities.simulation import Ball, Game
+
 
 def get_field_info() -> FieldInfoPacket:
     packet = FieldInfoPacket()
@@ -73,11 +75,14 @@ def get_random_packet():
 
     return packet
 
+start_time = time_ns()
 Game.set_mode("soccar")
 game = Game()
 game.read_field_info(get_field_info())
 game_tick_packet = get_random_packet()
 game.read_packet(game_tick_packet)
+print(f"Execution time: {(time_ns() - start_time) / 1e6}ms")
+print()
 
 random_vec3 = vec3(randint(-4000, 4000), randint(-5020, 5020), randint(100, 1944))
 vec3_copy = vec3(random_vec3)
@@ -87,5 +92,11 @@ print(vec3_copy)
 assert random_vec3.z != vec3_copy.z
 
 random_ball = Ball()
+
 packet_ball = Ball(game_tick_packet.game_ball)
-packet_ball.step(1/120)
+print(packet_ball.position)
+start_time = time_ns()
+for _ in range(0, 6 * 120):
+    packet_ball.step(1/120)
+print(f"Execution time: {(time_ns() - start_time) / 1e6}ms")
+print(packet_ball.position)
