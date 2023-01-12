@@ -9,19 +9,6 @@ pub mod rlu {
     pub use base::rlu::*;
 }
 
-pub mod linear_algebra {
-    pub mod vec {
-        autocxx::include_cpp! {
-            #include "linear_algebra/vec.h"
-            name!(lin_math)
-            safety!(unsafe)
-            generate!("vec3")
-        }
-
-        pub use lin_math::*;
-    }
-}
-
 pub mod simulation {
     pub mod game {
         autocxx::include_cpp! {
@@ -81,6 +68,21 @@ pub mod simulation {
 
                 #[cxx_name = "get_position"]
                 fn get_position_2(&self) -> [f32; 3];
+
+                #[cxx_name = "set_position"]
+                fn set_position_2(self: Pin<&mut Ball>, pos: [f32; 3]);
+
+                #[cxx_name = "get_velocity"]
+                fn get_velocity_2(&self) -> [f32; 3];
+
+                #[cxx_name = "set_velocity"]
+                fn set_velocity_2(self: Pin<&mut Ball>, vel: [f32; 3]);
+
+                #[cxx_name = "get_angular_velocity"]
+                fn get_angular_velocity_2(&self) -> [f32; 3];
+
+                #[cxx_name = "set_angular_velocity"]
+                fn set_angular_velocity_2(self: Pin<&mut Ball>, ang_vel: [f32; 3]);
             }
         }
 
