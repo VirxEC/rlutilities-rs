@@ -53,9 +53,7 @@ jobs:
           path: dist
 
   linux:
-    runs-on: ubuntu-latest
-    container:
-      image: quay.io/pypa/manylinux_2_28_x86_64:latest
+    runs-on: ubuntu-20.04
     permissions:
       contents: write
     steps:
@@ -70,8 +68,6 @@ jobs:
           ~/.cargo/git/db/
           target
         key: ${{ runner.os }}-cargo
-    - name: Install Clang
-      run: dnf -y install clang
     - name: Build wheels
       uses: messense/maturin-action@v1
       with:
