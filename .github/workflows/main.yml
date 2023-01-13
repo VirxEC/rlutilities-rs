@@ -112,6 +112,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Fetch Cargo.toml
+        uses: actions/checkout@v3
+
       - name: Download wheels
         uses: actions/download-artifact@v3
         with:
@@ -134,9 +137,6 @@ jobs:
         with:
           name: rlutilities
           path: rlutilities.zip
-
-      - name: Fetch Cargo.toml
-        uses: actions/checkout@v3
 
       - name: Check Release Tags
         working-directory: rlbot_gui_rust_apt
