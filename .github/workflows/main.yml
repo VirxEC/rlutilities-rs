@@ -119,11 +119,11 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: wheels
+          path: wheels
 
       - name: Create singularity
         run: |
           mkdir out
-          unzip -d wheels wheels.zip
           cd wheels
           unzip *win*.whl
           unzip -n *linux*.whl
@@ -160,10 +160,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: sdist
-
-      - name: Unzip sdist
-        if: ${{ steps.version_check_staging.outputs.versionChanged == 'true' }}
-        run: unzip -d out sdist.zip
+          path: out
 
       - name: Create Release
         if: ${{ steps.version_check_staging.outputs.versionChanged == 'true' }}
