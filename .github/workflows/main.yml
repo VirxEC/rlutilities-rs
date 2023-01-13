@@ -43,16 +43,17 @@ jobs:
           target: x64
           args: --release --out dist
           rust-toolchain: stable
-      - name: Install built wheel
-        run: |
-          pip install rlbot
-          pip install rlutilities  --no-index --find-links dist --force-reinstall
-          python pytest.py
       - name: Upload wheels
         uses: actions/upload-artifact@v3
         with:
           name: wheels
           path: dist
+      - name: Install built wheel
+        run: |
+          pip install wheel rlbot
+          pip install rlutilities  --no-index --find-links dist --force-reinstall
+          cd dist
+          python ../pytest.py
 
   linux:
     runs-on: ubuntu-20.04
