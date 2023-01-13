@@ -71,7 +71,7 @@ jobs:
           target
         key: ${{ runner.os }}-cargo
     - name: Install Clang
-      run: dnf install clang
+      run: dnf -y install clang
     - name: Build wheels
       uses: messense/maturin-action@v1
       with:
