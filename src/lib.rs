@@ -146,7 +146,7 @@ impl Ball {
         let mut vec = [None; Self::NAMES.len() - 1];
 
         let mut time = args.get_item(0).and_then(PyAny::extract).ok();
-        
+
         if let Ok(args) = args.extract::<Vec<Vec3>>() {
             vec.iter_mut()
                 .zip(args.into_iter().skip(1))
@@ -242,11 +242,23 @@ impl Ball {
     }
 
     fn __str__(&self) -> String {
-        format!("Ball: time={}, position={}, velocity={}, angular_velocity={}", self.get_time(), self.get_position().__str__(), self.get_velocity().__str__(), self.get_angular_velocity().__str__())
+        format!(
+            "Ball: time={}, position={}, velocity={}, angular_velocity={}",
+            self.get_time(),
+            self.get_position().__str__(),
+            self.get_velocity().__str__(),
+            self.get_angular_velocity().__str__()
+        )
     }
 
     fn __repr__(&self) -> String {
-        format!("Ball(time={}, position={}, velocity={}, angular_velocity={})", self.get_time(), self.get_position().__repr__(), self.get_velocity().__repr__(), self.get_angular_velocity().__repr__())
+        format!(
+            "Ball(time={}, position={}, velocity={}, angular_velocity={})",
+            self.get_time(),
+            self.get_position().__repr__(),
+            self.get_velocity().__repr__(),
+            self.get_angular_velocity().__repr__()
+        )
     }
 }
 

@@ -3,11 +3,11 @@ use glob::glob;
 use miette::{IntoDiagnostic, Result};
 
 fn main() -> Result<()> {
-    let mut b = Builder::new("src/ctypes.rs", ["RLUtilities-cpp/inc/"])
+    Builder::new("src/ctypes.rs", ["RLUtilities-cpp/inc/"])
         .extra_clang_args(&["-std=c++17"])
-        .build()?;
-
-    b.flag_if_supported("-std=c++17")
+        .build()?
+        .flag_if_supported("-std=c++17")
+        .flag_if_supported("/std:c++17")
         .files(
             glob("RLUtilities-cpp/src/**/*.cc")
                 .into_diagnostic()?
