@@ -77,28 +77,37 @@ def get_random_packet():
 
 start_time = time_ns()
 Game.set_mode("soccar")
+print()
+
 game = Game()
 game.read_field_info(get_field_info())
 game.read_packet(get_random_packet())
-print(f"Execution time: {(time_ns() - start_time) / 1e6}ms")
-print()
+print(f"Startup time: {(time_ns() - start_time) / 1e6}ms")
 
 random_vec3 = vec3(randint(-4000, 4000), randint(-5020, 5020), randint(100, 1944))
 vec3_copy = vec3(random_vec3)
 vec3_copy.z = 0
 assert random_vec3.z != vec3_copy.z
 
-random_ball = Ball()
+default_ball = Ball()
+assert default_ball.time == 0
+assert default_ball.position.x == 0 and default_ball.position.y == 0 and default_ball.position.z != 0
+assert default_ball.velocity == vec3(0, 0, 0)
+assert default_ball.angular_velocity == vec3(0, 0, 0)
 
-print(repr(game.ball))
+random_time = uniform(0, 53)
+random_ball = Ball(random_time, vec3(1, 2, 3), angular_velocity=random_vec3)
+assert (random_ball.time - random_time) < 0.00001
+assert random_ball.position == vec3(1, 2, 3)
+assert random_ball.velocity == vec3(0, 0, 0)
+assert random_ball.angular_velocity == random_vec3
+
 new_ball = Ball(game.ball)
 assert game.ball.position == new_ball.position
-print(repr(new_ball))
 
 start_time = time_ns()
 for _ in range(0, 6 * 120):
     new_ball.step(1/120)
-print(f"Execution time: {(time_ns() - start_time) / 1e6}ms")
+print(f"6 second ball prediction generation time: {(time_ns() - start_time) / 1e6}ms")
 
 assert game.ball.position != new_ball.position
-print(repr(new_ball))

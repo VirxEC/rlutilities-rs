@@ -134,9 +134,67 @@ impl Ball {
 
 #[pymethods]
 impl Ball {
+    const NAMES: [&str; 4] = ["time", "position", "velocity", "angular_velocity"];
+
     #[new]
-    fn new(ball: Option<Ball>) -> Self {
-        ball.unwrap_or_default()
+    #[args(args = "*", kwargs = "**")]
+    fn new(args: &PyTuple, kwargs: Option<&PyAny>) -> Self {
+        if let Ok(args) = args.get_item(0).and_then(PyAny::extract) {
+            return args;
+        }
+
+        let mut vec = [None; Self::NAMES.len() - 1];
+
+        let mut time = args.get_item(0).and_then(PyAny::extract).ok();
+        
+        if let Ok(args) = args.extract::<Vec<Vec3>>() {
+            vec.iter_mut()
+                .zip(args.into_iter().skip(1))
+                .for_each(|(a, b)| *a = Some(b));
+        } else {
+            for (a, b) in vec.iter_mut().zip(args.into_iter().skip(1)) {
+                if let Ok(x) = b.extract() {
+                    *a = Some(x);
+                }
+            }
+        }
+
+        if let Some(kwargs) = kwargs {
+            if let Ok(arg) = kwargs.get_item(Self::NAMES[0]).and_then(PyAny::extract) {
+                time = Some(arg);
+            }
+
+            for (a, b) in vec.iter_mut().zip(Self::NAMES.into_iter().skip(1)) {
+                if let Ok(x) = kwargs.get_item(b).and_then(PyAny::extract) {
+                    *a = Some(x);
+                }
+            }
+        }
+
+        // if there are no items in vec that are Some, then we can just return the default
+        if vec.iter().all(|x| x.is_none()) {
+            Self::default()
+        } else {
+            let mut ball = Self::default();
+
+            if let Some(time) = time {
+                ball.set_time(time);
+            }
+
+            if let Some(pos) = vec[0] {
+                ball.set_position_g(pos);
+            }
+
+            if let Some(vel) = vec[1] {
+                ball.set_velocity_g(vel);
+            }
+
+            if let Some(ang_vel) = vec[2] {
+                ball.set_angular_velocity_g(ang_vel);
+            }
+
+            ball
+        }
     }
 
     fn step(&mut self, dt: f32) {
@@ -205,7 +263,6 @@ impl From<Vec3> for [f32; 3] {
 
 #[pymethods]
 impl Vec3 {
-    const VEC3_ITEMS: usize = 3;
     const NAMES: [&str; 3] = ["x", "y", "z"];
 
     #[new]
@@ -215,7 +272,7 @@ impl Vec3 {
             return args;
         }
 
-        let mut vec = [None; Self::VEC3_ITEMS];
+        let mut vec = [None; Self::NAMES.len()];
 
         if let Ok(args) = args.get_item(0).and_then(PyAny::extract::<Vec<f32>>) {
             vec.iter_mut()
@@ -249,7 +306,7 @@ impl Vec3 {
     }
 
     fn __getitem__(&self, index: usize) -> PyResult<f32> {
-        if index >= Self::VEC3_ITEMS {
+        if index >= Self::NAMES.len() {
             Err(PyIndexError::new_err("index out of range"))
         } else {
             Ok(self.0[index])
@@ -257,7 +314,7 @@ impl Vec3 {
     }
 
     fn __setitem__(&mut self, index: usize, value: f32) -> PyResult<()> {
-        if index >= Self::VEC3_ITEMS {
+        if index >= Self::NAMES.len() {
             Err(PyIndexError::new_err("index out of range"))
         } else {
             self.0[index] = value;
@@ -305,6 +362,10 @@ impl Vec3 {
 
     /// Only == and != are actually supported right now
     fn __richcmp__(&self, other: Self, op: CompareOp) -> bool {
+        if !matches!(op, CompareOp::Eq | CompareOp::Ne) {
+            return false;
+        };
+
         let Some(cmp) = self.partial_cmp(&other) else {
             return false;
         };
