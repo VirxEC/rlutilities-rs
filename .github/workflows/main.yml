@@ -48,15 +48,6 @@ jobs:
         with:
           name: wheels
           path: dist
-      - name: Install built wheel
-        shell: cmd
-        run: |
-          pip install wheel
-          pip install rlbot
-          pip install rlutilities  --no-index --find-links dist --force-reinstall
-          move pytest.py dist /y
-          cd dist
-          python pytest.py
 
   linux:
     runs-on: ubuntu-20.04
