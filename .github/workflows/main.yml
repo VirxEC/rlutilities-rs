@@ -112,9 +112,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Fetch Cargo.toml
-        uses: actions/checkout@v3
-
       - name: Download wheels
         uses: actions/download-artifact@v3
         with:
@@ -138,12 +135,14 @@ jobs:
           name: rlutilities
           path: rlutilities.zip
 
+      - name: Fetch Cargo.toml
+        uses: actions/checkout@v3
+
       - name: Check Release Tags
-        working-directory: rlbot_gui_rust_apt
         id: version_check_staging
         run: |
           git fetch --all --tags
-          cver=$(grep -x "version = ".*"" ../Cargo.toml | head -1)
+          cver=$(grep -x "version = ".*"" Cargo.toml | head -1)
           cver=${cver#"version = \""}
           cver=${cver%"\""}
           echo 'rawVersion='$cver >> $GITHUB_OUTPUT
