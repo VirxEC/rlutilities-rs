@@ -49,6 +49,7 @@ jobs:
           name: wheels
           path: dist
       - name: Install built wheel
+        shell: cmd
         run: |
           pip install wheel
           pip install rlbot
