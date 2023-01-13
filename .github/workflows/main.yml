@@ -112,6 +112,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Fetch Cargo.toml
+        uses: actions/checkout@v3
+        
       - name: Download wheels
         uses: actions/download-artifact@v3
         with:
@@ -135,13 +138,31 @@ jobs:
           name: rlutilities
           path: out/rlutilities.zip
 
+      - name: Check Release Tags
+        id: version_check_staging
+        run: |
+          git fetch --all --tags
+          cver=$(grep -x "version = ".*"" Cargo.toml | head -1)
+          cver=${cver#"version = \""}
+          cver=${cver%"\""}
+          echo 'rawVersion='$cver >> $GITHUB_OUTPUT
+          cver=v$cver
+          echo 'releaseVersion='$cver >> $GITHUB_OUTPUT
+          if [ $(git tag -l "$cver") ]; then
+              echo 'versionChanged=false' >> $GITHUB_OUTPUT
+          else
+              echo 'versionChanged=true' >> $GITHUB_OUTPUT
+          fi
+
       - name: Download sdist
+        if: ${{ steps.version_check_staging.outputs.versionChanged == 'true' }}
         uses: actions/download-artifact@v3
         with:
           name: sdist
           path: out
 
       - name: Create Release
+        if: ${{ steps.version_check_staging.outputs.versionChanged == 'true' }}
         uses: ncipollo/release-action@v1
         with:
           name: ${{ steps.version_check_staging.outputs.releaseVersion }} RLUtilities ABI Python Bindings
