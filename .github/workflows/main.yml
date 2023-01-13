@@ -54,6 +54,8 @@ jobs:
 
   linux:
     runs-on: ubuntu-latest
+    container:
+      image: quay.io/pypa/manylinux_2_28_x86_64:latest
     permissions:
       contents: write
     steps:
@@ -68,12 +70,14 @@ jobs:
           ~/.cargo/git/db/
           target
         key: ${{ runner.os }}-cargo
+    - name: Install Clang
+      run: sudo dnf install clang
     - name: Build wheels
       uses: messense/maturin-action@v1
       with:
         target: x86_64
         manylinux: auto
-        container: quay.io/pypa/manylinux_2_28_x86_64:latest
+        container: off
         args: --release --out dist
     - name: Upload wheels
       uses: actions/upload-artifact@v3
