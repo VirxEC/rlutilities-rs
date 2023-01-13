@@ -53,7 +53,7 @@ jobs:
           pip install wheel
           pip install rlbot
           pip install rlutilities  --no-index --find-links dist --force-reinstall
-          move /Y ./pytest.py ./dist/pytest.py
+          move /Y pytest.py dist
           cd dist
           python pytest.py
 
