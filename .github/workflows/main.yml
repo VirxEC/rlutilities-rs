@@ -50,10 +50,12 @@ jobs:
           path: dist
       - name: Install built wheel
         run: |
-          pip install wheel rlbot
+          pip install wheel
+          pip install rlbot
           pip install rlutilities  --no-index --find-links dist --force-reinstall
+          move /Y ./pytest.py ./dist/pytest.py
           cd dist
-          python ../pytest.py
+          python pytest.py
 
   linux:
     runs-on: ubuntu-20.04
