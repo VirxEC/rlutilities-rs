@@ -133,7 +133,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: rlutilities
-          path: rlutilities.zip
+          path: out/rlutilities.zip
 
       - name: Fetch Cargo.toml
         uses: actions/checkout@v3
@@ -165,8 +165,8 @@ jobs:
         if: ${{ steps.version_check_staging.outputs.versionChanged == 'true' }}
         uses: ncipollo/release-action@v1
         with:
-          name: RLUtilities ABI Python Bindings ${{ steps.version_check_staging.outputs.releaseVersion }}
-          artifacts: "out/*"
+          name: ${{ steps.version_check_staging.outputs.releaseVersion }} RLUtilities ABI Python Bindings
+          artifacts: "out/*.tar.gz,out/*.zip,out/*win*.whl,out/*linux*.whl"
           body: The .zip file is the drop-in replacement for the RLUtilities bindings. The .tar.gz is the minimal source distribution if you wish to download and compile this project yourself. The two *.whl files are pip wheels for installing for only one platform (Windows/Linux) via pip.
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ steps.version_check_staging.outputs.releaseVersion }}
