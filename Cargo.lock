@@ -751,7 +751,7 @@ dependencies = [
 
 [[package]]
 name = "rlutilities"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "autocxx",
  "autocxx-build",

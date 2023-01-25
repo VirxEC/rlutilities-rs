@@ -22,7 +22,7 @@ def get_field_info() -> FieldInfoPacket:
 
     packet.num_boosts = 15
     for i in range(packet.num_boosts):
-        packet.boost_pads[i] = BoostPad(Vector3(15, 3, 0.1), True)
+        packet.boost_pads[i] = BoostPad(Vector3(15, i, 0.1), True)
 
     return packet
 
@@ -44,7 +44,7 @@ def get_random_packet():
     packet.game_ball.collision_shape.type = 1
     packet.game_ball.collision_shape.sphere.diameter = 182.5
     packet.game_info.world_gravity_z = -650.
-    packet.game_info.seconds_elapsed = 0.469
+    packet.game_info.seconds_elapsed = uniform(0, 4)
 
     packet.num_cars = 4
     for i in range(packet.num_cars):
@@ -73,6 +73,11 @@ def get_random_packet():
             hitbox_offset=Vector3(13.9, 0, 20.8),
             spawn_id=randint(0, 2**30),
         )
+
+    packet.num_boost = 15
+    for i in range(packet.num_boost):
+        packet.game_boosts[i].timer = round(uniform(0, 10), 1)
+        packet.game_boosts[i].is_active = packet.game_boosts[i].timer == 0
 
     return packet
 
@@ -112,5 +117,6 @@ for i in range(0, 6 * 120):
 print(f"6 second ball prediction generation time: {(time_ns() - start_time) / 1e6}ms")
 
 assert game.ball.position != new_ball.position
+assert new_ball.time > 5.9 + game.ball.time and new_ball.time < 6.1 + game.ball.time
 
 # Drive(game.cars[2])

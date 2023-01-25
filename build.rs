@@ -4,9 +4,13 @@ use miette::{IntoDiagnostic, Result};
 
 fn main() -> Result<()> {
     Builder::new("src/ctypes.rs", ["RLUtilities-cpp/inc/"])
-        .extra_clang_args(&["-std=c++17"])
+        .extra_clang_args(&["-std=c++17", "-flto"])
         .build()?
+        .static_flag(true)
+        .use_plt(false)
+        .flag_if_supported("-flto")
         .flag_if_supported("-std=c++17")
+        .flag_if_supported("/GL")
         .flag_if_supported("/std:c++17")
         .files(
             glob("RLUtilities-cpp/src/**/*.cc")

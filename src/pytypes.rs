@@ -77,17 +77,11 @@ pub struct FieldInfoPacket {
 
 impl FieldInfoPacket {
     pub fn cpads(&self) -> Vec<sim::boost_pad::BoostPad> {
-        self.boost_pads[..self.num_boosts]
-            .iter()
-            .map(Into::into)
-            .collect()
+        self.boost_pads[..self.num_boosts].iter().map(Into::into).collect()
     }
 
     pub fn cgoals(&self) -> Vec<sim::goal::Goal> {
-        self.goals[..self.num_goals]
-            .iter()
-            .map(Into::into)
-            .collect()
+        self.goals[..self.num_goals].iter().map(Into::into).collect()
     }
 }
 
@@ -151,7 +145,7 @@ pub struct GameInfo {
 }
 
 #[derive(Clone, Copy, Debug, Default, FromPyObject)]
-pub struct Car {
+pub struct GameCar {
     pub physics: Physics,
     pub hitbox: Hitbox,
     pub hitbox_offset: Vector3,
@@ -162,10 +156,18 @@ pub struct Car {
     pub has_wheel_contact: bool,
 }
 
+#[derive(Clone, Copy, Debug, Default, FromPyObject)]
+pub struct GameBoost {
+    pub is_active: bool,
+    pub timer: f32,
+}
+
 #[derive(Clone, Debug, Default, FromPyObject)]
 pub struct GameTickPacket {
     pub game_info: GameInfo,
     pub game_ball: GameBall,
-    pub game_cars: Vec<Car>,
+    pub game_cars: Vec<GameCar>,
     pub num_cars: usize,
+    pub game_boosts: Vec<GameBoost>,
+    pub num_boost: usize,
 }

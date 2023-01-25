@@ -3,10 +3,7 @@ mod pytypes;
 
 pub use ctypes::{linear_algebra as linalg, mechanics as mech, rlu, simulation as sim};
 pub use linalg::vec::vec3 as cvec3;
-use pyo3::{
-    exceptions::PyIndexError, prelude::*, pyclass::CompareOp, types::PyTuple, wrap_pyfunction,
-    wrap_pymodule,
-};
+use pyo3::{exceptions::PyIndexError, prelude::*, pyclass::CompareOp, types::PyTuple, wrap_pyfunction, wrap_pymodule};
 use pytypes::*;
 
 macro_rules! pynamedmodule {
@@ -33,14 +30,22 @@ impl Default for Game {
             time: -1.,
             time_delta: 0.,
             time_remaining: -1.,
-            gravity: cvec3 {
-                data: [0., 0., -650.],
-            },
+            gravity: cvec3 { data: [0., 0., -650.] },
             state: sim::game::GameState::Inactive,
             ball: sim::ball::Ball::default(),
             pads: sim::game::new_boostpad_vec(),
             goals: sim::game::new_goal_vec(),
         })
+    }
+}
+
+impl Game {
+    fn get_mut_pads(&mut self) -> impl Iterator<Item = &mut sim::game::BoostPad> {
+        self.0.pads.pin_mut().iter_mut().map(std::pin::Pin::get_mut)
+    }
+
+    fn get_mut_goals(&mut self) -> impl Iterator<Item = &mut sim::game::Goal> {
+        self.0.goals.pin_mut().iter_mut().map(std::pin::Pin::get_mut)
     }
 }
 
@@ -57,16 +62,17 @@ impl Game {
     }
 
     fn read_field_info(&mut self, field_info: FieldInfoPacket) {
-        for (cpad, new_pad) in self.0.pads.pin_mut().iter_mut().zip(field_info.cpads()) {
-            *cpad.get_mut() = new_pad;
+        for (cpad, new_pad) in self.get_mut_pads().zip(field_info.cpads()) {
+            *cpad = new_pad;
         }
 
-        for (cgoal, new_goal) in self.0.goals.pin_mut().iter_mut().zip(field_info.cgoals()) {
-            *cgoal.get_mut() = new_goal;
+        for (cgoal, new_goal) in self.get_mut_goals().zip(field_info.cgoals()) {
+            *cgoal = new_goal;
         }
     }
 
     fn read_packet(&mut self, packet: GameTickPacket) {
+        // update game info
         self.0.time_delta = packet.game_info.seconds_elapsed - self.0.time;
         self.0.time = packet.game_info.seconds_elapsed;
         self.0.time_remaining = packet.game_info.game_time_remaining;
@@ -84,6 +90,13 @@ impl Game {
             sim::game::GameState::Inactive
         };
 
+        // update boost pads
+        for (cpad, pad) in self.get_mut_pads().zip(packet.game_boosts) {
+            cpad.state = pad.is_active.into();
+            cpad.timer = pad.timer;
+        }
+
+        // update ball
         self.0.ball.time = packet.game_info.seconds_elapsed;
         self.0.ball.position = packet.game_ball.physics.location.into();
         self.0.ball.velocity = packet.game_ball.physics.velocity.into();
@@ -161,9 +174,7 @@ impl Ball {
         let mut time = args.get_item(0).and_then(PyAny::extract).ok();
 
         if let Ok(args) = args.extract::<Vec<Vec3>>() {
-            vec.iter_mut()
-                .zip(args.into_iter().skip(1))
-                .for_each(|(a, b)| *a = Some(b));
+            vec.iter_mut().zip(args.into_iter().skip(1)).for_each(|(a, b)| *a = Some(b));
         } else {
             for (a, b) in vec.iter_mut().zip(args.into_iter().skip(1)) {
                 if let Ok(x) = b.extract() {
@@ -261,13 +272,9 @@ impl Vec3 {
         let mut vec = [None; Self::NAMES.len()];
 
         if let Ok(args) = args.get_item(0).and_then(PyAny::extract::<Vec<f32>>) {
-            vec.iter_mut()
-                .zip(args.into_iter())
-                .for_each(|(a, b)| *a = Some(b));
+            vec.iter_mut().zip(args.into_iter()).for_each(|(a, b)| *a = Some(b));
         } else if let Ok(args) = args.extract::<Vec<f32>>() {
-            vec.iter_mut()
-                .zip(args.into_iter())
-                .for_each(|(a, b)| *a = Some(b));
+            vec.iter_mut().zip(args.into_iter()).for_each(|(a, b)| *a = Some(b));
         } else {
             for (a, b) in vec.iter_mut().zip(args.into_iter()) {
                 if let Ok(x) = b.extract() {
@@ -284,11 +291,7 @@ impl Vec3 {
             }
         }
 
-        Self([
-            vec[0].unwrap_or_default(),
-            vec[1].unwrap_or_default(),
-            vec[2].unwrap_or_default(),
-        ])
+        Self([vec[0].unwrap_or_default(), vec[1].unwrap_or_default(), vec[2].unwrap_or_default()])
     }
 
     fn __getitem__(&self, index: usize) -> PyResult<f32> {

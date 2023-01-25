@@ -61,18 +61,7 @@ pub mod simulation {
 
                 fn new_boostpad_vec() -> UniquePtr<CxxVector<BoostPad>>;
                 fn new_goal_vec() -> UniquePtr<CxxVector<Goal>>;
-
-                fn resize_goals(self: &mut Game, num_goals: i32);
-
-                fn reset_goal(
-                    self: &mut Game,
-                    index: i32,
-                    position: vec3,
-                    direction: vec3,
-                    width: f32,
-                    height: f32,
-                    team: i32,
-                );
+                // fn new_car_vec() -> UniquePtr<CxxVector<Car>>;
             }
 
             struct Game {
@@ -84,6 +73,7 @@ pub mod simulation {
                 ball: Ball,
                 pads: UniquePtr<CxxVector<BoostPad>>,
                 goals: UniquePtr<CxxVector<Goal>>,
+                // cars: UniquePtr<CxxVector<Car>>,
             }
         }
 
@@ -95,8 +85,6 @@ pub mod simulation {
             #include "simulation/car.h"
             name!(sim_car)
             safety!(unsafe)
-            block!("vec3")
-            generate!("Car")
             generate_pod!("CarBody")
             generate_pod!("CarState")
         }
@@ -143,6 +131,16 @@ pub mod simulation {
                     Self::Full
                 } else {
                     Self::Partial
+                }
+            }
+        }
+
+        impl From<bool> for sim_boost_pad::BoostPadState {
+            fn from(value: bool) -> Self {
+                if value {
+                    Self::Available
+                } else {
+                    Self::Unavailable
                 }
             }
         }
