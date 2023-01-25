@@ -11,23 +11,11 @@ pub mod rlu {
 
 pub mod linear_algebra {
     pub mod vec {
-        #[allow(non_camel_case_types)]
-        pub struct vec3 {
-            pub data: [f32; 3],
-        }
-
-        unsafe impl cxx::ExternType for vec3 {
-            type Id = cxx::type_id!("vec3");
-            type Kind = cxx::kind::Trivial;
-        }
-
         #[cxx::bridge]
         mod linalg_vec {
-            unsafe extern "C++" {
-                include!("linear_algebra/vec.h");
-
-                #[allow(dead_code)]
-                type vec3 = super::vec3;
+            #[derive(Clone, Debug, Default)]
+            struct vec3 {
+                data: [f32; 3],
             }
         }
 
@@ -54,8 +42,7 @@ pub mod simulation {
             #include "simulation/game.h"
             name!(sim_game)
             safety!(unsafe)
-            extern_cpp_opaque_type!("Ball", crate::sim::ball::Ball)
-            generate!("Game")
+            generate_pod!("GameState")
         }
 
         #[cxx::bridge]
@@ -64,19 +51,21 @@ pub mod simulation {
                 include!("simulation/game.h");
 
                 type vec3 = crate::linalg::vec::vec3;
-                type Game = super::sim_game::Game;
+                type BoostPad = crate::sim::boost_pad::BoostPad;
+                type GameState = super::sim_game::GameState;
+                type Ball = crate::sim::ball::Ball;
+                type Goal = crate::sim::goal::Goal;
+                type Game;
 
-                #[cxx_name = "reset_pad"]
-                fn reset_pad_2(
-                    self: Pin<&mut Game>,
-                    index: i32,
-                    position: vec3,
-                    is_full_boost: bool,
-                );
+                fn set_mode(gamemode: String);
 
-                #[cxx_name = "reset_goal"]
-                fn reset_goal_2(
-                    self: Pin<&mut Game>,
+                fn new_boostpad_vec() -> UniquePtr<CxxVector<BoostPad>>;
+                fn new_goal_vec() -> UniquePtr<CxxVector<Goal>>;
+
+                fn resize_goals(self: &mut Game, num_goals: i32);
+
+                fn reset_goal(
+                    self: &mut Game,
                     index: i32,
                     position: vec3,
                     direction: vec3,
@@ -85,69 +74,136 @@ pub mod simulation {
                     team: i32,
                 );
             }
+
+            struct Game {
+                time: f32,
+                time_delta: f32,
+                time_remaining: f32,
+                gravity: vec3,
+                state: GameState,
+                ball: Ball,
+                pads: UniquePtr<CxxVector<BoostPad>>,
+                goals: UniquePtr<CxxVector<Goal>>,
+            }
         }
 
+        pub use sim_game_extra::*;
+    }
+
+    pub mod car {
         autocxx::include_cpp! {
             #include "simulation/car.h"
             name!(sim_car)
             safety!(unsafe)
             block!("vec3")
             generate!("Car")
+            generate_pod!("CarBody")
+            generate_pod!("CarState")
         }
 
-        pub use sim_game_extra::*;
+        pub use sim_car::*;
     }
 
     pub mod ball {
-        autocxx::include_cpp! {
-            #include "simulation/ball.h"
-            name!(sim_ball)
-            safety!(unsafe)
-            // generate_pod!("BallShape")
-            generate!("Ball")
-        }
-
         #[cxx::bridge]
-        mod sim_ball_extra {
+        mod sim_ball {
             unsafe extern "C++" {
                 include!("simulation/ball.h");
 
                 type vec3 = crate::linalg::vec::vec3;
-                type Ball = super::sim_ball::Ball;
+                type Ball;
 
-                #[cxx_name = "get_position"]
-                fn get_position_2(self: &Ball) -> vec3;
+                fn step(self: &mut Ball, dt: f32);
+            }
 
-                #[cxx_name = "set_position"]
-                fn set_position_2(self: Pin<&mut Ball>, pos: vec3);
-
-                #[cxx_name = "get_velocity"]
-                fn get_velocity_2(self: &Ball) -> vec3;
-
-                #[cxx_name = "set_velocity"]
-                fn set_velocity_2(self: Pin<&mut Ball>, vel: vec3);
-
-                #[cxx_name = "get_angular_velocity"]
-                fn get_angular_velocity_2(self: &Ball) -> vec3;
-
-                #[cxx_name = "set_angular_velocity"]
-                fn set_angular_velocity_2(self: Pin<&mut Ball>, ang_vel: vec3);
+            #[derive(Clone, Debug, Default)]
+            struct Ball {
+                position: vec3,
+                velocity: vec3,
+                angular_velocity: vec3,
+                time: f32,
             }
         }
 
-        pub use sim_ball_extra::*;
+        pub use sim_ball::*;
     }
 
     pub mod boost_pad {
         autocxx::include_cpp! {
             #include "simulation/boost_pad.h"
             name!(sim_boost_pad)
-            safety!(unsafe_ffi)
-            generate!("BoostPad")
+            safety!(unsafe)
             generate_pod!("BoostPadState")
             generate_pod!("BoostPadType")
         }
 
-        pub use sim_boost_pad::*;
+        impl From<bool> for sim_boost_pad::BoostPadType {
+            fn from(value: bool) -> Self {
+                if value {
+                    Self::Full
+                } else {
+                    Self::Partial
+                }
+            }
+        }
+
+        #[cxx::bridge]
+        mod sim_boost_pad_extra {
+            unsafe extern "C++" {
+                include!("simulation/boost_pad.h");
+
+                type vec3 = crate::linalg::vec::vec3;
+                type BoostPadType = super::sim_boost_pad::BoostPadType;
+                type BoostPadState = super::sim_boost_pad::BoostPadState;
+                type BoostPad;
+            }
+
+            struct BoostPad {
+                position: vec3,
+                #[cxx_name = "type"]
+                type_: BoostPadType,
+                state: BoostPadState,
+                timer: f32,
+                actor_id: u16,
+            }
+
+            impl CxxVector<BoostPad> {}
+        }
+
+        pub use sim_boost_pad_extra::*;
+    }
+
+    pub mod goal {
+        autocxx::include_cpp! {
+            #include "simulation/goal.h"
+            name!(sim_goal)
+            safety!(unsafe)
+            generate_pod!("GoalState")
+        }
+
+        #[cxx::bridge]
+        mod sim_goal_extra {
+            unsafe extern "C++" {
+                include!("simulation/goal.h");
+
+                type vec3 = crate::linalg::vec::vec3;
+                type GoalState = super::sim_goal::GoalState;
+                type Goal;
+            }
+
+            struct Goal {
+                state: GoalState,
+                position: vec3,
+                direction: vec3,
+                width: f32,
+                height: f32,
+                team: u8,
+                actor_id: u16,
+            }
+
+            impl CxxVector<Goal> {}
+        }
+
+        pub use sim_goal_extra::*;
     }
 }

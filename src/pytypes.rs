@@ -1,40 +1,51 @@
-use autocxx::c_int;
 use pyo3::prelude::*;
 
-use crate::linalg::vec::vec3;
+use crate::{linalg::vec::vec3 as cvec3, sim, Vec3};
 
 #[allow(dead_code)]
 #[derive(Clone, Copy, FromPyObject, Debug, Default)]
 pub struct Vector3 {
-    pub x: f32,
-    pub y: f32,
-    pub z: f32,
+    x: f32,
+    y: f32,
+    z: f32,
 }
 
-impl From<Vector3> for vec3 {
+impl From<Vector3> for cvec3 {
     fn from(value: Vector3) -> Self {
-        vec3 {
+        Self {
             data: [value.x, value.y, value.z],
         }
     }
 }
 
-impl From<Vector3> for [f32; 3] {
+impl From<Vector3> for Vec3 {
     fn from(value: Vector3) -> Self {
-        [value.x, value.y, value.z]
+        Self([value.x, value.y, value.z])
     }
 }
 
 #[allow(dead_code)]
 #[derive(Clone, Copy, FromPyObject, Debug, Default)]
-pub struct BoostPad {
+pub struct FieldBoostPad {
     pub location: Vector3,
     pub is_full_boost: bool,
 }
 
+impl From<&FieldBoostPad> for crate::sim::boost_pad::BoostPad {
+    fn from(pad: &FieldBoostPad) -> Self {
+        Self {
+            position: pad.location.into(),
+            type_: pad.is_full_boost.into(),
+            state: crate::sim::boost_pad::BoostPadState::Available,
+            timer: 0.,
+            actor_id: 0,
+        }
+    }
+}
+
 #[allow(dead_code)]
 #[derive(Clone, Copy, FromPyObject, Debug, Default)]
-pub struct GoalInfo {
+pub struct FieldGoalInfo {
     pub team_num: u8,
     pub location: Vector3,
     pub direction: Vector3,
@@ -42,30 +53,41 @@ pub struct GoalInfo {
     pub height: f32,
 }
 
-#[allow(dead_code)]
+impl From<&FieldGoalInfo> for crate::sim::goal::Goal {
+    fn from(goal: &FieldGoalInfo) -> Self {
+        Self {
+            team: goal.team_num,
+            position: goal.location.into(),
+            direction: goal.direction.into(),
+            width: goal.width,
+            height: goal.height,
+            state: crate::sim::goal::GoalState::Unknown,
+            actor_id: 0,
+        }
+    }
+}
+
 #[derive(Clone, FromPyObject, Debug, Default)]
 pub struct FieldInfoPacket {
     num_boosts: usize,
-    boost_pads: Vec<BoostPad>,
+    boost_pads: Vec<FieldBoostPad>,
     num_goals: usize,
-    goals: Vec<GoalInfo>,
+    goals: Vec<FieldGoalInfo>,
 }
 
 impl FieldInfoPacket {
-    pub fn num_boosts(&self) -> autocxx::c_int {
-        c_int(self.num_boosts as i32)
+    pub fn cpads(&self) -> Vec<sim::boost_pad::BoostPad> {
+        self.boost_pads[..self.num_boosts]
+            .iter()
+            .map(Into::into)
+            .collect()
     }
 
-    pub fn pads(&self) -> &[BoostPad] {
-        &self.boost_pads[..self.num_boosts]
-    }
-
-    pub fn num_goals(&self) -> autocxx::c_int {
-        c_int(self.num_goals as i32)
-    }
-
-    pub fn goals(&self) -> &[GoalInfo] {
-        &self.goals[..self.num_goals]
+    pub fn cgoals(&self) -> Vec<sim::goal::Goal> {
+        self.goals[..self.num_goals]
+            .iter()
+            .map(Into::into)
+            .collect()
     }
 }
 
@@ -140,9 +162,10 @@ pub struct Car {
     pub has_wheel_contact: bool,
 }
 
-#[derive(Clone, Copy, Debug, Default, FromPyObject)]
+#[derive(Clone, Debug, Default, FromPyObject)]
 pub struct GameTickPacket {
     pub game_info: GameInfo,
     pub game_ball: GameBall,
+    pub game_cars: Vec<Car>,
     pub num_cars: usize,
 }

@@ -29,6 +29,7 @@ class Ball:
 
 class Game:
     ball: Ball
+    cars: list[cars]
 
     def __init__() -> Game: ...
     def set_mode(mode: str): ...

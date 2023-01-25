@@ -1,10 +1,8 @@
 mod ctypes;
 mod pytypes;
 
-use std::fmt;
-
-use autocxx::prelude::*;
 pub use ctypes::{linear_algebra as linalg, mechanics as mech, rlu, simulation as sim};
+pub use linalg::vec::vec3 as cvec3;
 use pyo3::{
     exceptions::PyIndexError, prelude::*, pyclass::CompareOp, types::PyTuple, wrap_pyfunction,
     wrap_pymodule,
@@ -25,110 +23,125 @@ macro_rules! pynamedmodule {
     };
 }
 
-#[pyclass(unsendable)]
-struct Game(UniquePtr<sim::game::Game>);
+#[pyclass]
+#[repr(transparent)]
+struct Game(sim::game::Game);
+
+impl Default for Game {
+    fn default() -> Self {
+        Self(sim::game::Game {
+            time: -1.,
+            time_delta: 0.,
+            time_remaining: -1.,
+            gravity: cvec3 {
+                data: [0., 0., -650.],
+            },
+            state: sim::game::GameState::Inactive,
+            ball: sim::ball::Ball::default(),
+            pads: sim::game::new_boostpad_vec(),
+            goals: sim::game::new_goal_vec(),
+        })
+    }
+}
 
 #[pymethods]
 impl Game {
     #[new]
-    fn new() -> Self {
-        Self(sim::game::Game::new().within_unique_ptr())
+    fn __new__() -> Self {
+        Self::default()
     }
 
     #[staticmethod]
     fn set_mode(mode: String) {
-        sim::game::Game::set_mode(mode);
+        sim::game::set_mode(mode);
     }
 
     fn read_field_info(&mut self, field_info: FieldInfoPacket) {
-        self.0.pin_mut().resize_pads(field_info.num_boosts());
-        for (i, pad) in field_info.pads().iter().enumerate() {
-            self.0
-                .pin_mut()
-                .reset_pad_2(i as i32, pad.location.into(), pad.is_full_boost);
+        for (cpad, new_pad) in self.0.pads.pin_mut().iter_mut().zip(field_info.cpads()) {
+            *cpad.get_mut() = new_pad;
         }
 
-        self.0.pin_mut().resize_goals(field_info.num_goals());
-        for (i, goal) in field_info.goals().iter().enumerate() {
-            self.0.pin_mut().reset_goal_2(
-                i as i32,
-                goal.location.into(),
-                goal.direction.into(),
-                goal.width,
-                goal.height,
-                i32::from(goal.team_num),
-            );
+        for (cgoal, new_goal) in self.0.goals.pin_mut().iter_mut().zip(field_info.cgoals()) {
+            *cgoal.get_mut() = new_goal;
         }
     }
 
     fn read_packet(&mut self, packet: GameTickPacket) {
-        self.0.pin_mut().set_game_info(
-            packet.game_info.seconds_elapsed,
-            packet.game_info.game_time_remaining,
-            packet.game_info.world_gravity_z,
-            packet.game_info.is_match_ended,
-            packet.game_info.is_round_active,
-            packet.game_info.is_kickoff_pause,
-        );
+        self.0.time_delta = packet.game_info.seconds_elapsed - self.0.time;
+        self.0.time = packet.game_info.seconds_elapsed;
+        self.0.time_remaining = packet.game_info.game_time_remaining;
+        self.0.gravity.data[2] = packet.game_info.world_gravity_z;
 
-        let mut ball = self.get_ball();
-        ball.set_time(packet.game_info.seconds_elapsed);
-        ball.set_position_g(packet.game_ball.physics.location);
-        ball.set_velocity_g(packet.game_ball.physics.velocity);
-        ball.set_angular_velocity_g(packet.game_ball.physics.angular_velocity);
-        self.0.pin_mut().set_ball(ball.0);
+        self.0.state = if packet.game_info.is_match_ended {
+            sim::game::GameState::Ended
+        } else if packet.game_info.is_round_active {
+            if packet.game_info.is_kickoff_pause {
+                sim::game::GameState::Kickoff
+            } else {
+                sim::game::GameState::Active
+            }
+        } else {
+            sim::game::GameState::Inactive
+        };
+
+        self.0.ball.time = packet.game_info.seconds_elapsed;
+        self.0.ball.position = packet.game_ball.physics.location.into();
+        self.0.ball.velocity = packet.game_ball.physics.velocity.into();
+        self.0.ball.angular_velocity = packet.game_ball.physics.angular_velocity.into();
     }
 
     #[getter(ball)]
     fn get_ball(&self) -> Ball {
-        Ball(self.0.get_ball())
+        self.0.ball.clone().into()
     }
 
     #[setter(ball)]
     fn set_ball(&mut self, ball: Ball) {
-        self.0.pin_mut().set_ball(ball.0);
+        self.0.ball = ball.into();
     }
 }
 
-#[pyclass(unsendable)]
-struct Ball(UniquePtr<sim::ball::Ball>);
-
-impl fmt::Debug for Ball {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Ball")
-            .field("time", &self.get_time())
-            .field("position", &self.get_position())
-            .field("velocity", &self.get_velocity())
-            .field("angular_velocity", &self.get_angular_velocity())
-            .finish()
-    }
-}
-
-impl Clone for Ball {
-    fn clone(&self) -> Self {
-        let mut ball = sim::ball::Ball::new().within_unique_ptr();
-        ball.pin_mut().update_from_ball(&self.0);
-        Self(ball)
-    }
+#[pyclass(get_all, set_all)]
+#[derive(Clone, Debug)]
+struct Ball {
+    time: f32,
+    position: Vec3,
+    velocity: Vec3,
+    angular_velocity: Vec3,
 }
 
 impl Default for Ball {
     fn default() -> Self {
-        Self(sim::ball::Ball::new().within_unique_ptr())
+        Self {
+            time: 0.,
+            position: Vec3([0., 0., 110.]),
+            velocity: Vec3::default(),
+            angular_velocity: Vec3::default(),
+        }
     }
 }
 
-impl Ball {
-    fn set_position_g<V: Into<linalg::vec::vec3>>(&mut self, pos: V) {
-        self.0.pin_mut().set_position_2(pos.into());
+impl From<sim::ball::Ball> for Ball {
+    #[inline]
+    fn from(ball: sim::ball::Ball) -> Self {
+        Self {
+            time: ball.time,
+            position: ball.position.into(),
+            velocity: ball.velocity.into(),
+            angular_velocity: ball.angular_velocity.into(),
+        }
     }
+}
 
-    fn set_velocity_g<V: Into<linalg::vec::vec3>>(&mut self, vel: V) {
-        self.0.pin_mut().set_velocity_2(vel.into());
-    }
-
-    fn set_angular_velocity_g<V: Into<linalg::vec::vec3>>(&mut self, ang_vel: V) {
-        self.0.pin_mut().set_angular_velocity_2(ang_vel.into());
+impl From<Ball> for sim::ball::Ball {
+    #[inline]
+    fn from(ball: Ball) -> Self {
+        Self {
+            time: ball.time,
+            position: ball.position.into(),
+            velocity: ball.velocity.into(),
+            angular_velocity: ball.angular_velocity.into(),
+        }
     }
 }
 
@@ -137,8 +150,8 @@ impl Ball {
     const NAMES: [&str; 4] = ["time", "position", "velocity", "angular_velocity"];
 
     #[new]
-    #[args(args = "*", kwargs = "**")]
-    fn new(args: &PyTuple, kwargs: Option<&PyAny>) -> Self {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn __new__(args: &PyTuple, kwargs: Option<&PyAny>) -> Self {
         if let Ok(args) = args.get_item(0).and_then(PyAny::extract) {
             return args;
         }
@@ -175,89 +188,41 @@ impl Ball {
         if vec.iter().all(|x| x.is_none()) {
             Self::default()
         } else {
-            let mut ball = Self::default();
-
-            if let Some(time) = time {
-                ball.set_time(time);
+            Ball {
+                time: time.unwrap_or_default(),
+                position: vec[0].unwrap_or_default(),
+                velocity: vec[1].unwrap_or_default(),
+                angular_velocity: vec[2].unwrap_or_default(),
             }
-
-            if let Some(pos) = vec[0] {
-                ball.set_position_g(pos);
-            }
-
-            if let Some(vel) = vec[1] {
-                ball.set_velocity_g(vel);
-            }
-
-            if let Some(ang_vel) = vec[2] {
-                ball.set_angular_velocity_g(ang_vel);
-            }
-
-            ball
         }
     }
 
     fn step(&mut self, dt: f32) {
-        self.0.pin_mut().step(dt);
-    }
-
-    #[getter(time)]
-    fn get_time(&self) -> f32 {
-        self.0.get_time()
-    }
-
-    #[setter(time)]
-    fn set_time(&mut self, time: f32) {
-        self.0.pin_mut().set_time(time);
-    }
-
-    #[getter(position)]
-    fn get_position(&self) -> Vec3 {
-        Vec3(self.0.get_position_2().data)
-    }
-
-    #[setter(position)]
-    fn set_position(&mut self, pos: Vec3) {
-        self.set_position_g(pos);
-    }
-
-    #[getter(velocity)]
-    fn get_velocity(&self) -> Vec3 {
-        Vec3(self.0.get_velocity_2().data)
-    }
-
-    #[setter(velocity)]
-    fn set_velocity(&mut self, vel: Vec3) {
-        self.set_velocity_g(vel);
-    }
-
-    #[getter(angular_velocity)]
-    fn get_angular_velocity(&self) -> Vec3 {
-        Vec3(self.0.get_angular_velocity_2().data)
-    }
-
-    #[setter(angular_velocity)]
-    fn set_angular_velocity(&mut self, vel: Vec3) {
-        self.set_angular_velocity_g(vel);
+        // this code might look like a crime against humanity
+        // and I won't deny that but the performance impact is negligible
+        // it's well optimized by the compiler and makes syntax cleaner elsewhere
+        let mut ball: sim::ball::Ball = self.clone().into();
+        ball.step(dt);
+        *self = ball.into();
     }
 
     fn __str__(&self) -> String {
         format!(
             "Ball: time={}, position={}, velocity={}, angular_velocity={}",
-            self.get_time(),
-            self.get_position().__str__(),
-            self.get_velocity().__str__(),
-            self.get_angular_velocity().__str__()
+            self.time,
+            self.position.__str__(),
+            self.velocity.__str__(),
+            self.angular_velocity.__str__()
         )
     }
 
     fn __repr__(&self) -> String {
         format!(
             "Ball(time={}, position={}, velocity={}, angular_velocity={})",
-            self.get_time(),
-            self.get_position().__repr__(),
-            self.get_velocity().__repr__(),
-            self.get_angular_velocity().__repr__()
+            self.time,
+            self.position.__repr__(),
+            self.velocity.__repr__(),
+            self.angular_velocity.__repr__()
         )
     }
 }
@@ -265,9 +230,18 @@ impl Ball {
 #[pyclass]
 #[derive(Clone, Copy, PartialEq, PartialOrd, Default, Debug)]
 #[pyo3(name = "vec3")]
+#[repr(transparent)]
 struct Vec3([f32; 3]);
 
-impl From<Vec3> for linalg::vec::vec3 {
+impl From<cvec3> for Vec3 {
+    #[inline]
+    fn from(value: cvec3) -> Self {
+        Self(value.data)
+    }
+}
+
+impl From<Vec3> for cvec3 {
+    #[inline]
     fn from(value: Vec3) -> Self {
         Self { data: value.0 }
     }
@@ -278,7 +252,7 @@ impl Vec3 {
     const NAMES: [&str; 3] = ["x", "y", "z"];
 
     #[new]
-    #[args(args = "*", kwargs = "**")]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(args: &PyTuple, kwargs: Option<&PyAny>) -> Self {
         if let Ok(args) = args.get_item(0).and_then(PyAny::extract) {
             return args;

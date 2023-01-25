@@ -107,10 +107,10 @@ new_ball = Ball(game.ball)
 assert game.ball.position == new_ball.position
 
 start_time = time_ns()
-for _ in range(0, 6 * 120):
+for i in range(0, 6 * 120):
     new_ball.step(1/120)
 print(f"6 second ball prediction generation time: {(time_ns() - start_time) / 1e6}ms")
 
 assert game.ball.position != new_ball.position
 
-# Drive.get_controls()
+# Drive(game.cars[2])
