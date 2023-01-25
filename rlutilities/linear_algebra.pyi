@@ -1,4 +1,7 @@
-from typing import overload
+from typing import Tuple, overload
+
+_Shape = Tuple[int, ...]
+__doc__: str
 
 class vec3:
     x: float

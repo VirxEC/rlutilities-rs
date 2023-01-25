@@ -1,12 +1,22 @@
 use autocxx::c_int;
 use pyo3::prelude::*;
 
+use crate::linalg::vec::vec3;
+
 #[allow(dead_code)]
 #[derive(Clone, Copy, FromPyObject, Debug, Default)]
 pub struct Vector3 {
     pub x: f32,
     pub y: f32,
     pub z: f32,
+}
+
+impl From<Vector3> for vec3 {
+    fn from(value: Vector3) -> Self {
+        vec3 {
+            data: [value.x, value.y, value.z],
+        }
+    }
 }
 
 impl From<Vector3> for [f32; 3] {

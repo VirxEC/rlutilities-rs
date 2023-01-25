@@ -9,13 +9,52 @@ pub mod rlu {
     pub use base::rlu::*;
 }
 
+pub mod linear_algebra {
+    pub mod vec {
+        #[allow(non_camel_case_types)]
+        pub struct vec3 {
+            pub data: [f32; 3],
+        }
+
+        unsafe impl cxx::ExternType for vec3 {
+            type Id = cxx::type_id!("vec3");
+            type Kind = cxx::kind::Trivial;
+        }
+
+        #[cxx::bridge]
+        mod linalg_vec {
+            unsafe extern "C++" {
+                include!("linear_algebra/vec.h");
+
+                #[allow(dead_code)]
+                type vec3 = super::vec3;
+            }
+        }
+
+        pub use linalg_vec::*;
+    }
+}
+
+pub mod mechanics {
+    pub mod drive {
+        autocxx::include_cpp! {
+            #include "mechanics/drive.h"
+            name!(mech_drive)
+            safety!(unsafe)
+            generate!("Drive")
+        }
+
+        pub use mech_drive::*;
+    }
+}
+
 pub mod simulation {
     pub mod game {
         autocxx::include_cpp! {
             #include "simulation/game.h"
             name!(sim_game)
             safety!(unsafe)
-            extern_cpp_opaque_type!("Ball", crate::ctypes::simulation::ball::Ball)
+            extern_cpp_opaque_type!("Ball", crate::sim::ball::Ball)
             generate!("Game")
         }
 
@@ -24,13 +63,14 @@ pub mod simulation {
             unsafe extern "C++" {
                 include!("simulation/game.h");
 
+                type vec3 = crate::linalg::vec::vec3;
                 type Game = super::sim_game::Game;
 
                 #[cxx_name = "reset_pad"]
                 fn reset_pad_2(
                     self: Pin<&mut Game>,
                     index: i32,
-                    position: [f32; 3],
+                    position: vec3,
                     is_full_boost: bool,
                 );
 
@@ -38,13 +78,21 @@ pub mod simulation {
                 fn reset_goal_2(
                     self: Pin<&mut Game>,
                     index: i32,
-                    position: [f32; 3],
-                    direction: [f32; 3],
+                    position: vec3,
+                    direction: vec3,
                     width: f32,
                     height: f32,
                     team: i32,
                 );
             }
+        }
+
+        autocxx::include_cpp! {
+            #include "simulation/car.h"
+            name!(sim_car)
+            safety!(unsafe)
+            block!("vec3")
+            generate!("Car")
         }
 
         pub use sim_game_extra::*;
@@ -64,25 +112,26 @@ pub mod simulation {
             unsafe extern "C++" {
                 include!("simulation/ball.h");
 
+                type vec3 = crate::linalg::vec::vec3;
                 type Ball = super::sim_ball::Ball;
 
                 #[cxx_name = "get_position"]
-                fn get_position_2(&self) -> [f32; 3];
+                fn get_position_2(self: &Ball) -> vec3;
 
                 #[cxx_name = "set_position"]
-                fn set_position_2(self: Pin<&mut Ball>, pos: [f32; 3]);
+                fn set_position_2(self: Pin<&mut Ball>, pos: vec3);
 
                 #[cxx_name = "get_velocity"]
-                fn get_velocity_2(&self) -> [f32; 3];
+                fn get_velocity_2(self: &Ball) -> vec3;
 
                 #[cxx_name = "set_velocity"]
-                fn set_velocity_2(self: Pin<&mut Ball>, vel: [f32; 3]);
+                fn set_velocity_2(self: Pin<&mut Ball>, vel: vec3);
 
                 #[cxx_name = "get_angular_velocity"]
-                fn get_angular_velocity_2(&self) -> [f32; 3];
+                fn get_angular_velocity_2(self: &Ball) -> vec3;
 
                 #[cxx_name = "set_angular_velocity"]
-                fn set_angular_velocity_2(self: Pin<&mut Ball>, ang_vel: [f32; 3]);
+                fn set_angular_velocity_2(self: Pin<&mut Ball>, ang_vel: vec3);
             }
         }
 

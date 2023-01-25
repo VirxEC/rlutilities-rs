@@ -4,7 +4,7 @@ mod pytypes;
 use std::fmt;
 
 use autocxx::prelude::*;
-use ctypes::{rlu, simulation as sim};
+pub use ctypes::{linear_algebra as linalg, mechanics as mech, rlu, simulation as sim};
 use pyo3::{
     exceptions::PyIndexError, prelude::*, pyclass::CompareOp, types::PyTuple, wrap_pyfunction,
     wrap_pymodule,
@@ -119,15 +119,15 @@ impl Default for Ball {
 }
 
 impl Ball {
-    fn set_position_g<V: Into<[f32; 3]>>(&mut self, pos: V) {
+    fn set_position_g<V: Into<linalg::vec::vec3>>(&mut self, pos: V) {
         self.0.pin_mut().set_position_2(pos.into());
     }
 
-    fn set_velocity_g<V: Into<[f32; 3]>>(&mut self, vel: V) {
+    fn set_velocity_g<V: Into<linalg::vec::vec3>>(&mut self, vel: V) {
         self.0.pin_mut().set_velocity_2(vel.into());
     }
 
-    fn set_angular_velocity_g<V: Into<[f32; 3]>>(&mut self, ang_vel: V) {
+    fn set_angular_velocity_g<V: Into<linalg::vec::vec3>>(&mut self, ang_vel: V) {
         self.0.pin_mut().set_angular_velocity_2(ang_vel.into());
     }
 }
@@ -213,7 +213,7 @@ impl Ball {
 
     #[getter(position)]
     fn get_position(&self) -> Vec3 {
-        Vec3(self.0.get_position_2())
+        Vec3(self.0.get_position_2().data)
     }
 
     #[setter(position)]
@@ -223,7 +223,7 @@ impl Ball {
 
     #[getter(velocity)]
     fn get_velocity(&self) -> Vec3 {
-        Vec3(self.0.get_velocity_2())
+        Vec3(self.0.get_velocity_2().data)
     }
 
     #[setter(velocity)]
@@ -233,7 +233,7 @@ impl Ball {
 
     #[getter(angular_velocity)]
     fn get_angular_velocity(&self) -> Vec3 {
-        Vec3(self.0.get_angular_velocity_2())
+        Vec3(self.0.get_angular_velocity_2().data)
     }
 
     #[setter(angular_velocity)]
@@ -267,9 +267,9 @@ impl Ball {
 #[pyo3(name = "vec3")]
 struct Vec3([f32; 3]);
 
-impl From<Vec3> for [f32; 3] {
+impl From<Vec3> for linalg::vec::vec3 {
     fn from(value: Vec3) -> Self {
-        value.0
+        Self { data: value.0 }
     }
 }
 
@@ -389,6 +389,26 @@ impl Vec3 {
 #[pyclass]
 struct Field();
 
+#[pyclass]
+struct Drive();
+
+// #[pymethods]
+// impl Drive {
+//     fn get_controls() {
+//         Python::with_gil(|py| {
+//             py.import("rlbot.")
+//         })
+//     }
+// }
+
+pynamedmodule! {
+    doc: "",
+    name: mechanics,
+    funcs: [],
+    classes: [Drive],
+    submodules: []
+}
+
 pynamedmodule! {
     doc: "",
     name: linear_algebra,
@@ -410,7 +430,7 @@ pynamedmodule! {
     name: rlutilities,
     funcs: [initialize],
     classes: [],
-    submodules: [simulation, linear_algebra]
+    submodules: [simulation, linear_algebra, mechanics]
 }
 
 #[pyfunction]

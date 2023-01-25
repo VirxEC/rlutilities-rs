@@ -1,6 +1,6 @@
 [package]
 name = "rlutilities"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 publish = false
 exclude = [".gitignore", ".gitmodules", "extras/", ".github/", "tests/", "python/", "extern/", "messages/", "RLUtilities-cpp/assets", ".editorconfig", "CMakeLists.txt", ".vimrc"]

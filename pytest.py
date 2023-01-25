@@ -10,6 +10,7 @@ from rlbot.utils.structures.game_data_struct import (BoostPad, BoxShape,
 
 from rlutilities.linear_algebra import vec3
 from rlutilities.simulation import Ball, Field, Game
+from rlutilities.mechanics import Drive
 
 
 def get_field_info() -> FieldInfoPacket:
@@ -111,3 +112,5 @@ for _ in range(0, 6 * 120):
 print(f"6 second ball prediction generation time: {(time_ns() - start_time) / 1e6}ms")
 
 assert game.ball.position != new_ball.position
+
+# Drive.get_controls()
