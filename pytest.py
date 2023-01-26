@@ -46,7 +46,7 @@ def get_random_packet():
     packet.game_info.world_gravity_z = -650.
     packet.game_info.seconds_elapsed = uniform(0, 4)
 
-    packet.num_cars = 4
+    packet.num_cars = 8
     for i in range(packet.num_cars):
         packet.game_cars[i] = PlayerInfo(
             physics=Physics(
@@ -81,14 +81,19 @@ def get_random_packet():
 
     return packet
 
+print()
+
 start_time = time_ns()
 Game.set_mode("soccar")
-print()
 
 game = Game()
 game.read_field_info(get_field_info())
-game.read_packet(get_random_packet())
+
 print(f"Startup time: {(time_ns() - start_time) / 1e6}ms")
+
+start_time = time_ns()
+game.read_packet(get_random_packet())
+print(f"Packet read time: {(time_ns() - start_time) / 1e6}ms")
 
 random_vec3 = vec3(randint(-4000, 4000), randint(-5020, 5020), randint(100, 1944))
 vec3_copy = vec3(random_vec3)
@@ -119,7 +124,7 @@ print(f"6 second ball prediction generation time: {(time_ns() - start_time) / 1e
 assert game.ball.position != new_ball.position
 assert new_ball.time > 5.9 + game.ball.time and new_ball.time < 6.1 + game.ball.time
 
-assert len(game.cars) == 4
+assert len(game.cars) == 8
 assert game.cars[2].position != vec3(0, 0, 0)
 
 # Drive(game.cars[2])
