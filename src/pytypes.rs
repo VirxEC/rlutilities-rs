@@ -1,6 +1,6 @@
 use pyo3::prelude::*;
 
-use crate::{linalg::vec::vec3 as cvec3, sim, Vec3};
+use crate::{cvec3, sim, Vec3};
 
 #[allow(dead_code)]
 #[derive(Clone, Copy, FromPyObject, Debug, Default)]
@@ -11,6 +11,7 @@ pub struct Vector3 {
 }
 
 impl From<Vector3> for cvec3 {
+    #[inline]
     fn from(value: Vector3) -> Self {
         Self {
             data: [value.x, value.y, value.z],
@@ -19,6 +20,7 @@ impl From<Vector3> for cvec3 {
 }
 
 impl From<Vector3> for Vec3 {
+    #[inline]
     fn from(value: Vector3) -> Self {
         Self([value.x, value.y, value.z])
     }
@@ -32,6 +34,7 @@ pub struct FieldBoostPad {
 }
 
 impl From<&FieldBoostPad> for crate::sim::boost_pad::BoostPad {
+    #[inline]
     fn from(pad: &FieldBoostPad) -> Self {
         Self {
             position: pad.location.into(),
@@ -54,6 +57,7 @@ pub struct FieldGoalInfo {
 }
 
 impl From<&FieldGoalInfo> for crate::sim::goal::Goal {
+    #[inline]
     fn from(goal: &FieldGoalInfo) -> Self {
         Self {
             team: goal.team_num,
@@ -76,10 +80,12 @@ pub struct FieldInfoPacket {
 }
 
 impl FieldInfoPacket {
+    #[inline]
     pub fn cpads(&self) -> Vec<sim::boost_pad::BoostPad> {
         self.boost_pads[..self.num_boosts].iter().map(Into::into).collect()
     }
 
+    #[inline]
     pub fn cgoals(&self) -> Vec<sim::goal::Goal> {
         self.goals[..self.num_goals].iter().map(Into::into).collect()
     }
@@ -92,11 +98,36 @@ pub struct Hitbox {
     pub height: f32,
 }
 
+impl From<Hitbox> for cvec3 {
+    #[inline]
+    fn from(value: Hitbox) -> Self {
+        Self {
+            data: [value.length, value.width, value.height],
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, FromPyObject)]
 pub struct Rotator {
-    pub pitch: f32,
-    pub yaw: f32,
-    pub roll: f32,
+    pitch: f32,
+    yaw: f32,
+    roll: f32,
+}
+
+impl From<Rotator> for cvec3 {
+    #[inline]
+    fn from(value: Rotator) -> Self {
+        Self {
+            data: [value.pitch, value.yaw, value.roll],
+        }
+    }
+}
+
+impl From<Rotator> for Vec3 {
+    #[inline]
+    fn from(value: Rotator) -> Self {
+        Self([value.pitch, value.yaw, value.roll])
+    }
 }
 
 // #[derive(Clone, Copy, Debug, Default, FromPyObject)]
@@ -147,13 +178,16 @@ pub struct GameInfo {
 #[derive(Clone, Copy, Debug, Default, FromPyObject)]
 pub struct GameCar {
     pub physics: Physics,
-    pub hitbox: Hitbox,
-    pub hitbox_offset: Vector3,
-    pub boost: u8,
-    pub jumped: bool,
-    pub double_jumped: bool,
     pub is_demolished: bool,
     pub has_wheel_contact: bool,
+    pub is_super_sonic: bool,
+    pub jumped: bool,
+    pub double_jumped: bool,
+    pub team: i32,
+    pub boost: i32,
+    pub hitbox: Hitbox,
+    pub hitbox_offset: Vector3,
+    pub spawn_id: i32,
 }
 
 #[derive(Clone, Copy, Debug, Default, FromPyObject)]
@@ -166,8 +200,20 @@ pub struct GameBoost {
 pub struct GameTickPacket {
     pub game_info: GameInfo,
     pub game_ball: GameBall,
-    pub game_cars: Vec<GameCar>,
-    pub num_cars: usize,
-    pub game_boosts: Vec<GameBoost>,
-    pub num_boost: usize,
+    game_cars: Vec<GameCar>,
+    num_cars: usize,
+    game_boosts: Vec<GameBoost>,
+    num_boost: usize,
+}
+
+impl GameTickPacket {
+    #[inline]
+    pub fn boostpads(&self) -> &[GameBoost] {
+        &self.game_boosts[..self.num_boost]
+    }
+
+    #[inline]
+    pub fn cars(&self) -> &[GameCar] {
+        &self.game_cars[..self.num_cars]
+    }
 }

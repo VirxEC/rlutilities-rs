@@ -27,9 +27,25 @@ class Ball:
     def __repr__(self): ...
     def step(self, dt: float): ...
 
+class Input:
+    steer: float
+    roll: float
+    pitch: float
+    yaw: float
+    throttle: float
+    jump: bool
+    boost: bool
+    handbrake: bool
+    use_item: bool
+
+class Car:
+    position: vec3
+
+    def __init__() -> Car: ...
+
 class Game:
     ball: Ball
-    cars: list[cars]
+    cars: list[Car]
 
     def __init__() -> Game: ...
     def set_mode(mode: str): ...

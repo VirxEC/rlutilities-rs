@@ -119,4 +119,7 @@ print(f"6 second ball prediction generation time: {(time_ns() - start_time) / 1e
 assert game.ball.position != new_ball.position
 assert new_ball.time > 5.9 + game.ball.time and new_ball.time < 6.1 + game.ball.time
 
+assert len(game.cars) == 4
+assert game.cars[2].position != vec3(0, 0, 0)
+
 # Drive(game.cars[2])

@@ -1,10 +1,13 @@
 mod ctypes;
 mod pytypes;
 
+use std::fmt;
+
 pub use ctypes::{linear_algebra as linalg, mechanics as mech, rlu, simulation as sim};
+pub use linalg::mat::mat3 as cmat3;
 pub use linalg::vec::vec3 as cvec3;
 use pyo3::{exceptions::PyIndexError, prelude::*, pyclass::CompareOp, types::PyTuple, wrap_pyfunction, wrap_pymodule};
-use pytypes::*;
+use pytypes::{FieldInfoPacket, GameTickPacket};
 
 macro_rules! pynamedmodule {
     (doc: $doc:literal, name: $name:tt, funcs: [$($func_name:path),*], classes: [$($class_name:ident),*], submodules: [$($submodule_name:ident),*]) => {
@@ -20,43 +23,148 @@ macro_rules! pynamedmodule {
     };
 }
 
-#[pyclass]
-#[repr(transparent)]
-struct Game(sim::game::Game);
+#[pyclass(get_all, set_all)]
+#[derive(Clone, Copy, Debug, Default)]
+struct Input {
+    steer: f32,
+    roll: f32,
+    pitch: f32,
+    yaw: f32,
+    throttle: f32,
+    jump: bool,
+    boost: bool,
+    handbrake: bool,
+    use_item: bool,
+}
 
-impl Default for Game {
-    fn default() -> Self {
-        Self(sim::game::Game {
-            time: -1.,
-            time_delta: 0.,
-            time_remaining: -1.,
-            gravity: cvec3 { data: [0., 0., -650.] },
-            state: sim::game::GameState::Inactive,
-            ball: sim::ball::Ball::default(),
-            pads: sim::game::new_boostpad_vec(),
-            goals: sim::game::new_goal_vec(),
-        })
+impl From<sim::input::Input> for Input {
+    #[inline]
+    fn from(input: sim::input::Input) -> Self {
+        Self {
+            steer: input.steer,
+            roll: input.roll,
+            pitch: input.pitch,
+            yaw: input.yaw,
+            throttle: input.throttle,
+            jump: input.jump,
+            boost: input.boost,
+            handbrake: input.handbrake,
+            use_item: input.use_item,
+        }
     }
 }
 
+impl From<Input> for sim::input::Input {
+    #[inline]
+    fn from(input: Input) -> Self {
+        Self {
+            steer: input.steer,
+            roll: input.roll,
+            pitch: input.pitch,
+            yaw: input.yaw,
+            throttle: input.throttle,
+            jump: input.jump,
+            boost: input.boost,
+            handbrake: input.handbrake,
+            use_item: input.use_item,
+        }
+    }
+}
+
+#[pyclass]
+#[derive(Clone, Default)]
+#[repr(transparent)]
+struct Car(sim::car::Car);
+
+impl fmt::Debug for Car {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Car")
+            .field("position", &self.0.position)
+            .field("velocity", &self.0.velocity)
+            .field("angular_velocity", &self.0.angular_velocity)
+            .field("orientation", &self.0.orientation)
+            .field("boost", &self.0.boost)
+            .field("jumped", &self.0.jumped)
+            .field("double_jumped", &self.0.double_jumped)
+            .field("on_ground", &self.0.on_ground)
+            .field("supersonic", &self.0.supersonic)
+            .field("demolished", &self.0.demolished)
+            .finish()
+    }
+}
+
+#[pymethods]
+impl Car {
+    #[new]
+    #[inline]
+    fn __new__() -> Self {
+        Self::default()
+    }
+
+    #[getter(position)]
+    #[inline]
+    fn get_position(&self) -> Vec3 {
+        self.0.position.into()
+    }
+
+    #[setter(position)]
+    #[inline]
+    fn set_position(&mut self, position: Vec3) {
+        self.0.position = position.into();
+    }
+
+    #[inline]
+    fn __str__(&self) -> String {
+        format!("{self:?}")
+    }
+}
+
+impl From<sim::car::Car> for Car {
+    #[inline]
+    fn from(car: sim::car::Car) -> Self {
+        Self(car)
+    }
+}
+
+impl From<Car> for sim::car::Car {
+    #[inline]
+    fn from(car: Car) -> Self {
+        car.0
+    }
+}
+
+#[pyclass]
+#[derive(Default)]
+#[repr(transparent)]
+struct Game(sim::game::Game);
+
 impl Game {
+    #[inline]
     fn get_mut_pads(&mut self) -> impl Iterator<Item = &mut sim::game::BoostPad> {
         self.0.pads.pin_mut().iter_mut().map(std::pin::Pin::get_mut)
     }
 
+    #[inline]
     fn get_mut_goals(&mut self) -> impl Iterator<Item = &mut sim::game::Goal> {
         self.0.goals.pin_mut().iter_mut().map(std::pin::Pin::get_mut)
+    }
+
+    #[inline]
+    fn get_mut_cars(&mut self) -> impl Iterator<Item = &mut sim::car::Car> {
+        self.0.cars.pin_mut().iter_mut().map(std::pin::Pin::get_mut)
     }
 }
 
 #[pymethods]
 impl Game {
     #[new]
+    #[inline]
     fn __new__() -> Self {
         Self::default()
     }
 
     #[staticmethod]
+    #[inline]
     fn set_mode(mode: String) {
         sim::game::set_mode(mode);
     }
@@ -91,9 +199,43 @@ impl Game {
         };
 
         // update boost pads
-        for (cpad, pad) in self.get_mut_pads().zip(packet.game_boosts) {
+        for (cpad, pad) in self.get_mut_pads().zip(packet.boostpads()) {
             cpad.state = pad.is_active.into();
             cpad.timer = pad.timer;
+        }
+
+        // add or remove cars to match the number in the packet
+        match packet.cars().len().cmp(&self.0.cars.len()) {
+            std::cmp::Ordering::Greater => {
+                for _ in self.0.cars.len()..packet.cars().len() {
+                    self.0.cars.pin_mut().push(sim::car::Car::default());
+                }
+            }
+            std::cmp::Ordering::Less => {
+                for _ in packet.cars().len()..self.0.cars.len() {
+                    self.0.cars.pin_mut().pop();
+                }
+            }
+            _ => {}
+        }
+
+        // update cars
+        for (car, ccar) in packet.cars().iter().zip(self.get_mut_cars()) {
+            ccar.time = packet.game_info.seconds_elapsed;
+            ccar.position = car.physics.location.into();
+            ccar.velocity = car.physics.velocity.into();
+            ccar.angular_velocity = car.physics.angular_velocity.into();
+            ccar.orientation = linalg::math::euler_to_rotation(&car.physics.rotation.into());
+            ccar.demolished = car.is_demolished;
+            ccar.on_ground = car.has_wheel_contact;
+            ccar.supersonic = car.is_super_sonic;
+            ccar.jumped = car.jumped;
+            ccar.double_jumped = car.double_jumped;
+            ccar.team = car.team;
+            ccar.boost = car.boost;
+            ccar.hitbox_widths = car.hitbox.into();
+            ccar.hitbox_offset = car.hitbox_offset.into();
+            ccar.id = car.spawn_id;
         }
 
         // update ball
@@ -104,18 +246,26 @@ impl Game {
     }
 
     #[getter(ball)]
+    #[inline]
     fn get_ball(&self) -> Ball {
         self.0.ball.clone().into()
     }
 
     #[setter(ball)]
+    #[inline]
     fn set_ball(&mut self, ball: Ball) {
         self.0.ball = ball.into();
+    }
+
+    #[getter(cars)]
+    #[inline]
+    fn get_cars(&self) -> Vec<Car> {
+        self.0.cars.iter().cloned().map(Into::into).collect()
     }
 }
 
 #[pyclass(get_all, set_all)]
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 struct Ball {
     time: f32,
     position: Vec3,
@@ -124,6 +274,7 @@ struct Ball {
 }
 
 impl Default for Ball {
+    #[inline]
     fn default() -> Self {
         Self {
             time: 0.,
@@ -196,7 +347,7 @@ impl Ball {
         }
 
         // if there are no items in vec that are Some, then we can just return the default
-        if vec.iter().all(|x| x.is_none()) {
+        if vec.iter().all(std::option::Option::is_none) {
             Self::default()
         } else {
             Ball {
@@ -212,11 +363,12 @@ impl Ball {
         // this code might look like a crime against humanity
         // and I won't deny that but the performance impact is negligible
         // it's well optimized by the compiler and makes syntax cleaner elsewhere
-        let mut ball: sim::ball::Ball = self.clone().into();
+        let mut ball: sim::ball::Ball = (*self).into();
         ball.step(dt);
         *self = ball.into();
     }
 
+    #[inline]
     fn __str__(&self) -> String {
         format!(
             "Ball: time={}, position={}, velocity={}, angular_velocity={}",
@@ -227,6 +379,7 @@ impl Ball {
         )
     }
 
+    #[inline]
     fn __repr__(&self) -> String {
         format!(
             "Ball(time={}, position={}, velocity={}, angular_velocity={})",
@@ -235,6 +388,25 @@ impl Ball {
             self.velocity.__repr__(),
             self.angular_velocity.__repr__()
         )
+    }
+}
+
+#[pyclass]
+#[derive(Clone, Copy, PartialEq, PartialOrd, Default, Debug)]
+#[pyo3(name = "mat3")]
+struct Mat3([f32; 9]);
+
+impl From<cmat3> for Mat3 {
+    #[inline]
+    fn from(value: cmat3) -> Self {
+        Self(value.data)
+    }
+}
+
+impl From<Mat3> for cmat3 {
+    #[inline]
+    fn from(value: Mat3) -> Self {
+        Self { data: value.0 }
     }
 }
 
@@ -294,6 +466,7 @@ impl Vec3 {
         Self([vec[0].unwrap_or_default(), vec[1].unwrap_or_default(), vec[2].unwrap_or_default()])
     }
 
+    #[inline]
     fn __getitem__(&self, index: usize) -> PyResult<f32> {
         if index >= Self::NAMES.len() {
             Err(PyIndexError::new_err("index out of range"))
@@ -302,6 +475,7 @@ impl Vec3 {
         }
     }
 
+    #[inline]
     fn __setitem__(&mut self, index: usize, value: f32) -> PyResult<()> {
         if index >= Self::NAMES.len() {
             Err(PyIndexError::new_err("index out of range"))
@@ -312,39 +486,47 @@ impl Vec3 {
     }
 
     #[getter(x)]
+    #[inline]
     fn get_x(&self) -> f32 {
         self.0[0]
     }
 
     #[setter(x)]
+    #[inline]
     fn set_x(&mut self, x: f32) {
         self.0[0] = x;
     }
 
     #[getter(y)]
+    #[inline]
     fn get_y(&self) -> f32 {
         self.0[1]
     }
 
     #[setter(y)]
+    #[inline]
     fn set_y(&mut self, y: f32) {
         self.0[1] = y;
     }
 
     #[getter(z)]
+    #[inline]
     fn get_z(&self) -> f32 {
         self.0[2]
     }
 
     #[setter(z)]
+    #[inline]
     fn set_z(&mut self, z: f32) {
         self.0[2] = z;
     }
 
+    #[inline]
     fn __str__(&self) -> String {
         format!("({:.2}, {:.2}, {:.2})", self.0[0], self.0[1], self.0[2])
     }
 
+    #[inline]
     fn __repr__(&self) -> String {
         format!("vec3(x={}, y={}, z={})", self.0[0], self.0[1], self.0[2])
     }
@@ -368,15 +550,6 @@ struct Field();
 
 #[pyclass]
 struct Drive();
-
-// #[pymethods]
-// impl Drive {
-//     fn get_controls() {
-//         Python::with_gil(|py| {
-//             py.import("rlbot.")
-//         })
-//     }
-// }
 
 pynamedmodule! {
     doc: "",
@@ -411,6 +584,7 @@ pynamedmodule! {
 }
 
 #[pyfunction]
+#[inline]
 fn initialize(asset_dir: String) {
     rlu::initialize(asset_dir);
 }
