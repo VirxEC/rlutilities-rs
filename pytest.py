@@ -9,7 +9,7 @@ from rlbot.utils.structures.game_data_struct import (BoostPad, BoxShape,
                                                      Vector3)
 
 from rlutilities.linear_algebra import vec3
-from rlutilities.simulation import Ball, Field, Game
+from rlutilities.simulation import Ball, Field, Game, Input
 from rlutilities.mechanics import Drive
 
 
@@ -89,11 +89,11 @@ Game.set_mode("soccar")
 game = Game()
 game.read_field_info(get_field_info())
 
-print(f"Startup time: {(time_ns() - start_time) / 1e6}ms")
+print(f"Startup: {(time_ns() - start_time) / 1e6}ms")
 
 start_time = time_ns()
 game.read_packet(get_random_packet())
-print(f"Packet read time: {(time_ns() - start_time) / 1e6}ms")
+print(f"Packet read: {(time_ns() - start_time) / 1e6}ms")
 
 random_vec3 = vec3(randint(-4000, 4000), randint(-5020, 5020), randint(100, 1944))
 vec3_copy = vec3(random_vec3)
@@ -119,7 +119,7 @@ assert game.ball.position == new_ball.position
 start_time = time_ns()
 for i in range(0, 6 * 120):
     new_ball.step(1/120)
-print(f"6 second ball prediction generation time: {(time_ns() - start_time) / 1e6}ms")
+print(f"6 second ball prediction generation: {(time_ns() - start_time) / 1e6}ms")
 
 assert game.ball.position != new_ball.position
 assert new_ball.time > 5.9 + game.ball.time and new_ball.time < 6.1 + game.ball.time
@@ -127,4 +127,12 @@ assert new_ball.time > 5.9 + game.ball.time and new_ball.time < 6.1 + game.ball.
 assert len(game.cars) == 8
 assert game.cars[2].position != vec3(0, 0, 0)
 
-# Drive(game.cars[2])
+start_time = time_ns()
+action = Drive(game.cars[2])
+action.speed = 1400
+action.target = game.ball.position 
+action.step(1/120)
+
+assert action.controls != Input()
+
+print(f"Get drive controls: {(time_ns() - start_time) / 1e6}ms")

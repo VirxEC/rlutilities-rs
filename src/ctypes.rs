@@ -6,7 +6,7 @@ pub mod rlu {
         generate!("rlu::initialize")
     }
 
-    pub use base::rlu::*;
+    pub use base::rlu::initialize;
 }
 
 pub mod linear_algebra {
@@ -19,7 +19,7 @@ pub mod linear_algebra {
             }
         }
 
-        pub use linalg_vec::*;
+        pub use linalg_vec::vec3;
     }
 
     pub mod mat {
@@ -31,7 +31,7 @@ pub mod linear_algebra {
             }
         }
 
-        pub use linalg_mat::*;
+        pub use linalg_mat::mat3;
     }
 
     impl From<[[f32; 3]; 3]> for mat::mat3 {
@@ -103,14 +103,41 @@ pub mod linear_algebra {
 
 pub mod mechanics {
     pub mod drive {
-        autocxx::include_cpp! {
-            #include "mechanics/drive.h"
-            name!(mech_drive)
-            safety!(unsafe)
-            generate!("Drive")
+        #[cxx::bridge]
+        mod mech_drive {
+            unsafe extern "C++" {
+                include!("mechanics/drive.h");
+
+                type vec3 = crate::cvec3;
+                type Car = crate::sim::car::Car;
+                type Input = crate::sim::input::Input;
+                type Drive;
+
+                #[must_use]
+                fn new_drive(car: Car) -> Drive;
+
+                fn step(self: &mut Drive, dt: f32);
+            }
+
+            #[derive(Clone, Copy, Default)]
+            struct Drive {
+                car: Car,
+                target: vec3,
+                speed: f32,
+                reaction_time: f32,
+                finished: bool,
+                controls: Input,
+            }
         }
 
-        pub use mech_drive::*;
+        pub use mech_drive::Drive;
+        use mech_drive::{new_drive, Car};
+
+        impl Drive {
+            pub fn new(car: Car) -> Self {
+                new_drive(car)
+            }
+        }
     }
 }
 
@@ -161,6 +188,15 @@ pub mod simulation {
             }
         }
 
+        use sim_game_extra::{new_boostpad_vec, new_car_vec, new_goal_vec, set_mode, vec3, Ball};
+        pub use sim_game_extra::{Game, GameState};
+
+        impl Game {
+            pub fn set_mode(gamemode: String) {
+                set_mode(gamemode)
+            }
+        }
+
         impl Default for Game {
             #[inline]
             fn default() -> Self {
@@ -168,62 +204,41 @@ pub mod simulation {
                     time: -1.,
                     time_delta: 0.,
                     time_remaining: -1.,
-                    gravity: crate::cvec3 { data: [0., 0., -650.] },
+                    gravity: vec3 { data: [0., 0., -650.] },
                     state: GameState::Inactive,
-                    ball: crate::sim::ball::Ball::default(),
+                    ball: Ball::default(),
                     pads: new_boostpad_vec(),
                     goals: new_goal_vec(),
                     cars: new_car_vec(),
                 }
             }
         }
-
-        pub use sim_game_extra::*;
     }
 
     pub mod input {
-        autocxx::include_cpp! {
-            #include "simulation/input.h"
-            name!(sim_input)
-            safety!(unsafe)
-            generate_pod!("Input")
-        }
+        #[cxx::bridge]
+        mod sim_input {
+            unsafe extern "C++" {
+                include!("simulation/input.h");
 
-        pub use sim_input::*;
-    }
+                type Input;
+            }
 
-    impl Clone for input::Input {
-        #[inline]
-        fn clone(&self) -> Self {
-            Self {
-                throttle: self.throttle,
-                steer: self.steer,
-                pitch: self.pitch,
-                yaw: self.yaw,
-                roll: self.roll,
-                jump: self.jump,
-                boost: self.boost,
-                handbrake: self.handbrake,
-                use_item: self.use_item,
+            #[derive(Clone, Copy, Default, Debug)]
+            struct Input {
+                pub steer: f32,
+                pub roll: f32,
+                pub pitch: f32,
+                pub yaw: f32,
+                pub throttle: f32,
+                pub jump: bool,
+                pub boost: bool,
+                pub handbrake: bool,
+                pub use_item: bool,
             }
         }
-    }
 
-    impl Default for input::Input {
-        #[inline]
-        fn default() -> Self {
-            Self {
-                throttle: 0.0,
-                steer: 0.0,
-                pitch: 0.0,
-                yaw: 0.0,
-                roll: 0.0,
-                jump: false,
-                boost: false,
-                handbrake: false,
-                use_item: false,
-            }
-        }
+        pub use sim_input::Input;
     }
 
     pub mod car {
@@ -249,9 +264,11 @@ pub mod simulation {
                 type CarState = super::sim_car::CarState;
                 type Input = crate::sim::input::Input;
                 type Car;
+
+                fn step(self: &mut Car, in_: Input, dt: f32);
             }
 
-            #[derive(Clone)]
+            #[derive(Clone, Copy)]
             struct Car {
                 position: vec3,
                 velocity: vec3,
@@ -284,6 +301,13 @@ pub mod simulation {
             impl CxxVector<Car> {}
         }
 
+        use crate::linalg::math::{eye, inv};
+        use sim_car_extra::{mat3, vec3, Input};
+        pub use sim_car_extra::{Car, CarBody, CarState};
+
+        impl Copy for CarBody {}
+        impl Copy for CarState {}
+
         pub const M: f32 = 180.;
         pub const V_MAX: f32 = 2300.;
         pub const W_MAX: f32 = 5.5;
@@ -296,7 +320,7 @@ pub mod simulation {
                     position: vec3::default(),
                     velocity: vec3::default(),
                     angular_velocity: vec3::default(),
-                    orientation: crate::linalg::math::eye(),
+                    orientation: eye(),
                     supersonic: false,
                     jumped: false,
                     double_jumped: false,
@@ -320,14 +344,12 @@ pub mod simulation {
                     },
                     team: 0,
                     id: 0,
-                    controls: crate::sim::input::Input::default(),
+                    controls: Input::default(),
                     I: i,
-                    invI: crate::linalg::math::inv(&i),
+                    invI: inv(&i),
                 }
             }
         }
-
-        pub use sim_car_extra::*;
     }
 
     pub mod ball {
@@ -342,7 +364,7 @@ pub mod simulation {
                 fn step(self: &mut Ball, dt: f32);
             }
 
-            #[derive(Clone, Debug, Default)]
+            #[derive(Clone, Copy, Debug, Default)]
             struct Ball {
                 position: vec3,
                 velocity: vec3,
@@ -351,7 +373,7 @@ pub mod simulation {
             }
         }
 
-        pub use sim_ball::*;
+        pub use sim_ball::Ball;
     }
 
     pub mod boost_pad {
@@ -361,28 +383,6 @@ pub mod simulation {
             safety!(unsafe)
             generate_pod!("BoostPadState")
             generate_pod!("BoostPadType")
-        }
-
-        impl From<bool> for sim_boost_pad::BoostPadType {
-            #[inline]
-            fn from(value: bool) -> Self {
-                if value {
-                    Self::Full
-                } else {
-                    Self::Partial
-                }
-            }
-        }
-
-        impl From<bool> for sim_boost_pad::BoostPadState {
-            #[inline]
-            fn from(value: bool) -> Self {
-                if value {
-                    Self::Available
-                } else {
-                    Self::Unavailable
-                }
-            }
         }
 
         #[cxx::bridge]
@@ -396,6 +396,7 @@ pub mod simulation {
                 type BoostPad;
             }
 
+            #[derive(Clone, Copy)]
             struct BoostPad {
                 position: vec3,
                 #[cxx_name = "type"]
@@ -408,7 +409,32 @@ pub mod simulation {
             impl CxxVector<BoostPad> {}
         }
 
-        pub use sim_boost_pad_extra::*;
+        impl Copy for BoostPadType {}
+        impl Copy for BoostPadState {}
+
+        impl From<bool> for BoostPadType {
+            #[inline]
+            fn from(value: bool) -> Self {
+                if value {
+                    Self::Full
+                } else {
+                    Self::Partial
+                }
+            }
+        }
+
+        impl From<bool> for BoostPadState {
+            #[inline]
+            fn from(value: bool) -> Self {
+                if value {
+                    Self::Available
+                } else {
+                    Self::Unavailable
+                }
+            }
+        }
+
+        pub use sim_boost_pad_extra::{BoostPad, BoostPadState, BoostPadType};
     }
 
     pub mod goal {
@@ -442,6 +468,6 @@ pub mod simulation {
             impl CxxVector<Goal> {}
         }
 
-        pub use sim_goal_extra::*;
+        pub use sim_goal_extra::{Goal, GoalState};
     }
 }

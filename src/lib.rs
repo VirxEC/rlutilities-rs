@@ -71,8 +71,22 @@ impl From<Input> for sim::input::Input {
     }
 }
 
+#[pymethods]
+impl Input {
+    #[new]
+    #[inline]
+    fn __new__() -> Self {
+        Self::default()
+    }
+
+    #[inline]
+    fn __str__(&self) -> String {
+        format!("{self:?}")
+    }
+}
+
 #[pyclass]
-#[derive(Clone, Default)]
+#[derive(Clone, Copy, Default)]
 #[repr(transparent)]
 struct Car(sim::car::Car);
 
@@ -93,12 +107,31 @@ impl fmt::Debug for Car {
     }
 }
 
+impl From<sim::car::Car> for Car {
+    #[inline]
+    fn from(car: sim::car::Car) -> Self {
+        Self(car)
+    }
+}
+
+impl From<Car> for sim::car::Car {
+    #[inline]
+    fn from(car: Car) -> Self {
+        car.0
+    }
+}
+
 #[pymethods]
 impl Car {
     #[new]
     #[inline]
     fn __new__() -> Self {
         Self::default()
+    }
+
+    #[inline]
+    fn step(&mut self, in_: Input, dt: f32) {
+        self.0.step(in_.into(), dt);
     }
 
     #[getter(position)]
@@ -119,20 +152,6 @@ impl Car {
     }
 }
 
-impl From<sim::car::Car> for Car {
-    #[inline]
-    fn from(car: sim::car::Car) -> Self {
-        Self(car)
-    }
-}
-
-impl From<Car> for sim::car::Car {
-    #[inline]
-    fn from(car: Car) -> Self {
-        car.0
-    }
-}
-
 #[pyclass]
 #[derive(Default)]
 #[repr(transparent)]
@@ -140,12 +159,12 @@ struct Game(sim::game::Game);
 
 impl Game {
     #[inline]
-    fn get_mut_pads(&mut self) -> impl Iterator<Item = &mut sim::game::BoostPad> {
+    fn get_mut_pads(&mut self) -> impl Iterator<Item = &mut sim::boost_pad::BoostPad> {
         self.0.pads.pin_mut().iter_mut().map(std::pin::Pin::get_mut)
     }
 
     #[inline]
-    fn get_mut_goals(&mut self) -> impl Iterator<Item = &mut sim::game::Goal> {
+    fn get_mut_goals(&mut self) -> impl Iterator<Item = &mut sim::goal::Goal> {
         self.0.goals.pin_mut().iter_mut().map(std::pin::Pin::get_mut)
     }
 
@@ -163,10 +182,10 @@ impl Game {
         Self::default()
     }
 
-    #[staticmethod]
     #[inline]
+    #[staticmethod]
     fn set_mode(mode: String) {
-        sim::game::set_mode(mode);
+        sim::game::Game::set_mode(mode);
     }
 
     fn read_field_info(&mut self, field_info: FieldInfoPacket) {
@@ -245,22 +264,28 @@ impl Game {
         self.0.ball.angular_velocity = packet.game_ball.physics.angular_velocity.into();
     }
 
-    #[getter(ball)]
     #[inline]
+    #[getter(ball)]
     fn get_ball(&self) -> Ball {
-        self.0.ball.clone().into()
+        self.0.ball.into()
     }
 
-    #[setter(ball)]
     #[inline]
+    #[setter(ball)]
     fn set_ball(&mut self, ball: Ball) {
         self.0.ball = ball.into();
     }
 
-    #[getter(cars)]
     #[inline]
+    #[getter(cars)]
     fn get_cars(&self) -> Vec<Car> {
         self.0.cars.iter().cloned().map(Into::into).collect()
+    }
+
+    #[inline]
+    #[getter(time_delta)]
+    fn get_time_delta(&self) -> f32 {
+        self.0.time_delta
     }
 }
 
@@ -370,13 +395,7 @@ impl Ball {
 
     #[inline]
     fn __str__(&self) -> String {
-        format!(
-            "Ball: time={}, position={}, velocity={}, angular_velocity={}",
-            self.time,
-            self.position.__str__(),
-            self.velocity.__str__(),
-            self.angular_velocity.__str__()
-        )
+        format!("{self:?}")
     }
 
     #[inline]
@@ -485,45 +504,45 @@ impl Vec3 {
         }
     }
 
-    #[getter(x)]
     #[inline]
+    #[getter(x)]
     fn get_x(&self) -> f32 {
         self.0[0]
     }
 
-    #[setter(x)]
     #[inline]
+    #[setter(x)]
     fn set_x(&mut self, x: f32) {
         self.0[0] = x;
     }
 
-    #[getter(y)]
     #[inline]
+    #[getter(y)]
     fn get_y(&self) -> f32 {
         self.0[1]
     }
 
-    #[setter(y)]
     #[inline]
+    #[setter(y)]
     fn set_y(&mut self, y: f32) {
         self.0[1] = y;
     }
 
-    #[getter(z)]
     #[inline]
+    #[getter(z)]
     fn get_z(&self) -> f32 {
         self.0[2]
     }
 
-    #[setter(z)]
     #[inline]
+    #[setter(z)]
     fn set_z(&mut self, z: f32) {
         self.0[2] = z;
     }
 
     #[inline]
     fn __str__(&self) -> String {
-        format!("({:.2}, {:.2}, {:.2})", self.0[0], self.0[1], self.0[2])
+        format!("{self:?}")
     }
 
     #[inline]
@@ -549,7 +568,87 @@ impl Vec3 {
 struct Field();
 
 #[pyclass]
-struct Drive();
+#[derive(Clone, Copy, Default)]
+#[repr(transparent)]
+struct Drive(mech::drive::Drive);
+
+impl fmt::Debug for Drive {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Drive")
+            .field("speed", &self.0.speed)
+            .field("target", &self.0.target)
+            .field("controls", &self.0.controls)
+            .field("finished", &self.0.finished)
+            .finish()
+    }
+}
+
+#[pymethods]
+impl Drive {
+    #[new]
+    #[inline]
+    fn __new__(car: Car) -> Self {
+        Self(mech::drive::Drive::new(car.0))
+    }
+
+    #[inline]
+    fn step(&mut self, dt: f32) {
+        self.0.step(dt);
+    }
+
+    #[inline]
+    #[getter(car)]
+    fn get_car(&self) -> Car {
+        self.0.car.into()
+    }
+
+    #[inline]
+    #[setter(car)]
+    fn set_car(&mut self, car: Car) {
+        self.0.car = car.0;
+    }
+
+    #[inline]
+    #[getter(speed)]
+    fn get_speed(&self) -> f32 {
+        self.0.speed
+    }
+
+    #[inline]
+    #[setter(speed)]
+    fn set_speed(&mut self, speed: f32) {
+        self.0.speed = speed;
+    }
+
+    #[inline]
+    #[getter(target)]
+    fn get_target(&self) -> Vec3 {
+        self.0.target.into()
+    }
+
+    #[inline]
+    #[setter(target)]
+    fn set_target(&mut self, target: Vec3) {
+        self.0.target = target.into();
+    }
+
+    #[inline]
+    #[getter(controls)]
+    fn get_controls(&self) -> Input {
+        self.0.controls.into()
+    }
+
+    #[inline]
+    #[getter(finished)]
+    fn get_finished(&self) -> bool {
+        self.0.finished
+    }
+
+    #[inline]
+    fn __str__(&self) -> String {
+        format!("{self:?}")
+    }
+}
 
 pynamedmodule! {
     doc: "",
@@ -571,7 +670,7 @@ pynamedmodule! {
     doc: "",
     name: simulation,
     funcs: [],
-    classes: [Game, Ball, Field],
+    classes: [Game, Ball, Field, Input],
     submodules: []
 }
 
