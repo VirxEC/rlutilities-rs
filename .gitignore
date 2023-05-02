@@ -1,6 +1,4 @@
 .vscode
 build
 target
-venv
-__pycache__
-*.abi3.*
+Cargo.lock
