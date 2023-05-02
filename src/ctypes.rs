@@ -65,15 +65,11 @@ pub mod mechanics {
                 type Input = crate::simulation::input::Input;
                 type Drive;
 
-                #[must_use]
-                fn new_drive(car: Car) -> Drive;
-
-                fn step(self: &mut Drive, dt: f32);
+                fn step(self: &mut Drive, car: &Car, dt: f32);
             }
 
-            #[derive(Clone, Copy, Default)]
+            #[derive(Clone, Copy, Debug)]
             struct Drive {
-                car: Car,
                 target: vec3,
                 speed: f32,
                 reaction_time: f32,
@@ -83,13 +79,6 @@ pub mod mechanics {
         }
 
         pub use mech_drive::Drive;
-        use mech_drive::{new_drive, Car};
-
-        impl Drive {
-            pub fn new(car: Car) -> Self {
-                new_drive(car)
-            }
-        }
     }
 }
 
@@ -250,6 +239,7 @@ pub mod simulation {
                 invI: mat3,
             }
 
+            impl UniquePtr<Car> {}
             impl CxxVector<Car> {}
         }
 

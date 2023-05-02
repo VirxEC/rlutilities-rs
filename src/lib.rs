@@ -1,8 +1,12 @@
 mod ctypes;
 
+pub use autocxx;
 pub use ctypes::linear_algebra::{mat::mat3 as cmat3, vec::vec3 as cvec3};
+use ctypes::mechanics::drive::Drive;
 pub use ctypes::*;
+pub use cxx;
 
+use std::fmt;
 use ctypes::{
     linear_algebra::math,
     simulation::{
@@ -11,6 +15,52 @@ use ctypes::{
         input::Input,
     },
 };
+
+impl fmt::Debug for CarBody {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CarBody::Octane => write!(f, "Octane"),
+            CarBody::Dominus => write!(f, "Dominus"),
+            CarBody::Plank => write!(f, "Plank"),
+            CarBody::Breakout => write!(f, "Breakout"),
+            CarBody::Hybrid => write!(f, "Hybrid"),
+        }
+    }
+}
+
+impl fmt::Debug for CarState {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CarState::Demolished => write!(f, "Demolished"),
+            CarState::Dodged => write!(f, "Dodged"),
+            CarState::DoubleJumped => write!(f, "DoubleJumped"),
+            CarState::Jumped => write!(f, "Jumped"),
+            CarState::OnGround => write!(f, "OnGround"),
+            CarState::InAir => write!(f, "InAir"),
+        }
+    }
+}
+
+impl cvec3 {
+    pub const ZERO: Self = Self { data: [0.; 3] };
+    pub const ONE: Self = Self { data: [1.; 3] };
+    pub const X: Self = Self { data: [1., 0., 0.] };
+    pub const Y: Self = Self { data: [0., 1., 0.] };
+    pub const Z: Self = Self { data: [0., 0., 1.] };
+}
+
+impl Default for Drive {
+    #[inline]
+    fn default() -> Self {
+        Self {
+            target: cvec3::ZERO,
+            speed: 1400.,
+            reaction_time: 0.04,
+            controls: Input::default(),
+            finished: false,
+        }
+    }
+}
 
 impl From<[[f32; 3]; 3]> for cmat3 {
     #[inline]
